@@ -133,6 +133,7 @@ scatterPlot.prototype.render = function(){
 	height = $(this.selector).height() - analytics.margin.top - analytics.margin.bottom;
 	height = parseInt(height/100 * 60)
 
+
 	$(this.selector).empty()
 
 	var x_select = d3.select(this.selector)
@@ -191,7 +192,6 @@ scatterPlot.prototype.render = function(){
 
 	var xScale, yScale;
 
-
 	if (this.col_date.indexOf(this.sel_x) != -1){
 		xScale = d3.time.scale().range([0, width]);
 		format_x = d3.time.format('%x');
@@ -228,6 +228,7 @@ scatterPlot.prototype.render = function(){
 	    .attr("height", height)
 	  	.append("g")
 	    .attr("transform", "translate(" + analytics.margin.left + "," + analytics.margin.top + ")");
+
 
 	if(this.col_vec.indexOf(this.sel_x) != -1){
 		var length_array = [];
@@ -271,33 +272,99 @@ scatterPlot.prototype.render = function(){
 		})).nice();
 	}
 
+	// Define zoom behaviour based on parameter dependend x and y scales
+	var zoom = d3.behavior.zoom()
+	    .x(xScale)
+	    .y(yScale)
+	    .scaleExtent([1, 10])
+	    .on("zoom", zoomed);
+
+	// Add rect to allow zoom and pan interaction over complete graph
+	svg.append("rect")
+		.attr("width", width)
+		.attr("height", height)
+		.attr("fill", "transparent");
+
+	// Add clip path so only points in the area are shown
+	svg.append("defs").append("clipPath")
+		.attr("id", "clip")
+	    .append("rect")
+	        .attr("width", width)
+	        .attr("height", height);
+
+
+	svg.attr("pointer-events", "all");
+	svg.call(zoom);
+
+	function zoomed() {
+		svg.select(".x.axis").call(xAxis);
+		svg.select(".y.axis").call(yAxis);
+		resize();
+	}
+
+	// Add checkbox for grid visualization
+	this.grid_active = false;
+	this.gridselector = d3.select(this.selector).append('input').attr('type','checkbox');
+	this.gridselector.attr("style", ("position: absolute; top:" + 20 +"px; left:"+(parseInt(width/2) + this.margin.left)+"px;"));
+	this.gridselector.on("change", function() {
+		self.grid_active = !self.grid_active;
+		// If grid is selected we expand the tick size to cover the whole plot
+		if(self.grid_active){
+			xAxis.tickSize(-height);
+			yAxis.tickSize(-width);
+			$.injectCSS({
+			    ".scatter .tick line": {
+			        stroke: "#D3D3D3 !important"
+			    }
+			});
+
+		}else{
+			xAxis.tickSize(5);
+			yAxis.tickSize(5);
+
+			$.injectCSS({
+			    ".scatter .tick line": {
+			        stroke: "black !important"
+			    }
+			});
+		}
+		// Update Axis to draw lines
+		svg.select('.x.axis')
+	      .attr("transform", "translate(0," + height + ")")
+	      .call(xAxis);
+
+	    svg.select('.y.axis')
+	      .call(yAxis);
+	});
+
 
 	svg.append("g")
 		.attr("class", "x axis")
 		.attr("transform", "translate(0," + height + ")")
 		.call(xAxis)
 		.append("text")
-		.attr("class", "label")
-		.attr("x", width)
-		.attr("y", -6)
-		.style("text-anchor", "end")
-		.text(this.sel_x);
+			.attr("class", "label")
+			.attr("x", width)
+			.attr("y", -6)
+			.style("text-anchor", "end")
+			.text(this.sel_x);
 
 	svg.append("g")
 		.attr("class", "y axis")
 		.call(yAxis)
 		.append("text")
-		.attr("class", "label")
-		.attr("transform", "rotate(-90)")
-		.attr("y", 6)
-		.attr("dy", ".71em")
-		.style("text-anchor", "end")
-		.text(this.sel_y);
+			.attr("class", "label")
+			.attr("transform", "rotate(-90)")
+			.attr("y", 6)
+			.attr("dy", ".71em")
+			.style("text-anchor", "end")
+			.text(this.sel_y);
 
 	
 	svg.selectAll(".dot")
 		.data(this.data)
 		.enter().append("circle")
+		.attr("class", "area").attr("clip-path", "url(#clip)")
 		.attr("class", "dot")
 		.style("display", function(d) {
 			return !d["active"] ? "none" : null;
@@ -375,6 +442,8 @@ scatterPlot.prototype.render = function(){
 	    var width = $(self.selector).width() - analytics.margin.left - analytics.margin.right,
 	 		height = $(self.selector).height() - analytics.margin.top - analytics.margin.bottom;
 
+	 	height = parseInt(height/100 * 60);
+
 	    // Update the range of the scale with new width/height
 	    xScale.range([0, width]);
 	    yScale.range([height, 0]);
@@ -395,20 +464,50 @@ scatterPlot.prototype.render = function(){
 	      .attr("transform", "translate(0," + height + ")")
 	      .call(xAxis);
 
-
-	    // Update 
-
-	    
 	    svg.select('.y.axis')
 	      .call(yAxis);
 
 	    /* Force D3 to recalculate and update the dots */
 	    svg.selectAll(".dot")
-			.attr("cx", function(d) { return xScale(d[self.sel_x]); })
-			.attr("cy", function(d) { return yScale(d[self.sel_y]); });
+			.attr("cx", function(d) {return xScale(d[self.sel_x]);})
+			.attr("cy", function(d) {return yScale(d[self.sel_y]);});
+
+
+		/* Force D3 to recalculate and update grid lines */
+		/*svg.selectAll("line.horizontalGrid")
+			.data(yScale.ticks()).enter()
+		    .append("line")
+		        .attr(
+		        {
+		            "class":"horizontalGrid",
+		            "x2" : width,
+		            "y1" : function(d){ return yScale(d);},
+		            "y2" : function(d){ return yScale(d);},
+		            "fill" : "none",
+		            "shape-rendering" : "crispEdges",
+		            "stroke" : "LightGray",
+		            "stroke-width" : "1px"
+		        });
+
+		svg.selectAll("line.verticalGrid")
+			.data(xScale.ticks()).enter()
+		    .append("line")
+		        .attr(
+		        {
+		            "class":"verticalGrid",
+		            "x1" : function(d){ return xScale(d);},
+		            "x2" : function(d){ return xScale(d);},
+		            "y2" : height,
+		            "fill" : "none",
+		            "shape-rendering" : "crispEdges",
+		            "stroke" : "LightGray",
+		            "stroke-width" : "1px"
+		        });*/
 	}
 
 	d3.select(window).on('resize', resize); 
+
+
 
 }
 
@@ -525,8 +624,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		    	return data.length;
 		    })])
 		    .range([0, 40]);
-
-		console.log(x_hist[d].length);
 	});
 
 	// If there were active brushes before re-rendering set the brush extents again
