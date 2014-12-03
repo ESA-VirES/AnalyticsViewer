@@ -2831,7 +2831,7 @@ if (typeof(CanvasRenderingContext2D) != 'undefined') {
 			ignoreMouse: true, 
 			ignoreAnimation: true, 
 			ignoreDimensions: true, 
-			ignoreClear: true, 
+			ignoreClear: false, 
 			offsetX: dx, 
 			offsetY: dy, 
 			scaleWidth: dw, 

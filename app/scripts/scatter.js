@@ -246,7 +246,7 @@ scatterPlot.prototype.render = function(){
 
 	var svg_container = d3.select(this.selector).append("div")
 		.attr("class", "svg_container")
-		.attr("style", "width:" + $(this.selector).width() +";height:"+height);
+		.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
 
 	var svg = svg_container.append("svg")
 		.attr("class", "scatter")
@@ -373,31 +373,34 @@ scatterPlot.prototype.render = function(){
 	this.grid_active = false;
 	this.gridselector = d3.select(this.selector).append('input').attr('type','checkbox');
 	this.gridselector.attr("style", ("position: absolute; top:" + 20 +"px; left:"+(parseInt(width/2) + this.margin.left)+"px;"));
+
+
 	this.gridselector.on("change", function() {
 		self.grid_active = !self.grid_active;
 		// If grid is selected we expand the tick size to cover the whole plot
 		if(self.grid_active){
+
+			svg.selectAll('.axis line')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#D3D3D3");
+
 			xAxis.tickSize(-height);
 			yAxis.tickSize(-width);
-			$.injectCSS({
-			    ".scatter .tick line": {
-			        stroke: "#D3D3D3 !important"
-			    }
-			});
+			
 
 		}else{
 			xAxis.tickSize(5);
 			yAxis.tickSize(5);
 
-			$.injectCSS({
-			    ".scatter .tick line": {
-			        stroke: "black !important"
-			    }
-			});
+			svg.selectAll('.axis line')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#000");
 		}
+
 		// Update Axis to draw lines
 		svg.select('.x.axis')
-	      .attr("transform", "translate(0," + height + ")")
 	      .call(xAxis);
 
 	    svg.select('.y.axis')
@@ -412,7 +415,7 @@ scatterPlot.prototype.render = function(){
 		.call(xAxis)
 		.append("text")
 			.attr("class", "label")
-			.attr("x", width)
+			.attr("x", width - 10)
 			.attr("y", -6)
 			.style("text-anchor", "end")
 			.text(this.sel_x);
@@ -423,13 +426,34 @@ scatterPlot.prototype.render = function(){
 		.call(yAxis)
 		.append("text")
 			.attr("class", "label")
+			.attr("x", -10)
 			.attr("transform", "rotate(-90)")
 			.attr("y", 6)
-			.attr("dy", ".71em")
+			.attr("dy", "1em")
 			.style("text-anchor", "end")
 			.text(this.sel_y);
 
-	
+
+	// In order to work with the canvas renderer styles need to be applied directlo
+	// to svg elements instead of using a stile. Here we set stroke width and color 
+	// for all ticks and axis paths
+	svg.selectAll('.axis .domain')
+      	.attr("stroke-width", "2")
+      	.attr("stroke", "#000")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("fill", "none");
+
+    svg.selectAll('.axis line')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
+
+    svg.selectAll('.axis path')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
+
+
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
 
@@ -538,7 +562,29 @@ scatterPlot.prototype.render = function(){
 	    	.select('.label')
 	    	.attr("x", width);
 
-	    // Update the axis with the new scale
+
+	    if(self.grid_active){
+
+			svg.selectAll('.axis line')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#D3D3D3");
+
+			xAxis.tickSize(-height);
+			yAxis.tickSize(-width);
+			
+
+		}else{
+			xAxis.tickSize(5);
+			yAxis.tickSize(5);
+
+			svg.selectAll('.axis line')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#000");
+		}
+
+		// Update the axis with the new scale
 	    svg.select('.x.axis')
 	      .attr("transform", "translate(0," + height + ")")
 	      .call(xAxis);
@@ -727,6 +773,26 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	    .attr("text-anchor", "middle")
 	    .attr("y", -9)
 	    .text(String);
+
+
+	// In order to work with the canvas renderer styles need to be applied directlo
+	// to svg elements instead of using a stile. Here we set stroke width and color 
+	// for all ticks and axis paths
+	svg.selectAll('.axis .domain')
+      	.attr("stroke-width", "2")
+      	.attr("stroke", "#000")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("fill", "none");
+
+    svg.selectAll('.axis line')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
+
+    svg.selectAll('.axis path')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
 
 
 	// Add a brush for each axis.

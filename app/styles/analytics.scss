@@ -19,10 +19,10 @@ svg {
   margin-bottom: 0px !important;
 }
 
-.scatter{
+/*.scatter{
   height: 60%;
   width: 100%;
-}
+}*/
 
 .parallels{
   height: 40%;
@@ -39,26 +39,11 @@ svg {
   padding: 5px;
 }
 
-.foreground path {
-  fill: none;
-  stroke-opacity: .5;
-  stroke-width: 2.5px;
-}
-
-.foreground path.fade {
-  stroke: #000;
-  stroke-opacity: .05;
-}
 
 .legend {
   font-size: 18px;
   font-style: oblique;
 }
-
-.legend line {
-  stroke-width: 2px;
-}
-
 
 .brush .extent {
   fill-opacity: .3;
@@ -66,12 +51,6 @@ svg {
   shape-rendering: crispEdges;
 }
 
-.axis line, .axis path {
-  fill: none;
-  stroke: #000;
-  stroke-width: 2px;
-  shape-rendering: crispEdges;
-}
 
 .axis text {
   text-shadow: 0 1px 0 #fff;
