@@ -46,7 +46,7 @@ function scatterPlot(args, callback) {
 
 scatterPlot.prototype.parseData = function parseData(values){
 
-	var format_date = "%d/%m/%Y" ;
+	this.format_date = "%H:%M:%S" ;
 	var exp_date = /^(\d){4}-(\d){2}-(\d){2}/
 	var value;
 	var self = this;
@@ -81,14 +81,27 @@ scatterPlot.prototype.parseData = function parseData(values){
 	    			var vector = val.split(";");
 	    			for (var i = vector.length - 1; i >= 0; i--) {
 	    				// vector[i] = parseFloat(vector[i]);
-	    				var new_key;
-	    				switch (i){
-	    					case 0: new_key="B_N"; break;
-	    					case 1: new_key="B_E"; break;
-	    					case 2: new_key="B_C"; break;
-	    				}
-	    				//new_key = key + new_key;
-	    				p[new_key] = parseFloat(vector[i]);
+	    				if(key == "B_NEC"){
+		    				var new_key;
+		    				switch (i){
+		    					case 0: new_key="B_N"; break;
+		    					case 1: new_key="B_E"; break;
+		    					case 2: new_key="B_C"; break;
+		    				}
+		    				//new_key = key + new_key;
+		    				p[new_key] = parseFloat(vector[i]);
+
+		    			}else if(key == "B_NEC_res_chaos5"){
+		    				// vector[i] = parseFloat(vector[i]);
+		    				var new_key;
+		    				switch (i){
+		    					case 0: new_key="B_N_res"; break;
+		    					case 1: new_key="B_E_res"; break;
+		    					case 2: new_key="B_C_res"; break;
+		    				}
+		    				//new_key = key + new_key;
+		    				p[new_key] = parseFloat(vector[i]);
+		    			}
 	    			};
 	    			delete p[key];
 	    			// p[key] = vector;
@@ -149,7 +162,7 @@ scatterPlot.prototype.render = function(){
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "save")
-        .attr("style", "position: absolute; right: 10px; top: 10px")
+        .attr("style", "position: absolute; right: 45px; top: 7px")
         .text("Save");
 
 
@@ -174,15 +187,24 @@ scatterPlot.prototype.render = function(){
 
 	});
 
+	// Add button for grid toggle
+	this.grid_active = false;
+	this.gridselector = d3.select(this.selector).append("button")   
+        .attr("type", "button")
+        .attr("class", "btn btn-success")
+        .attr("id", "grid")
+        .attr("style", "position: absolute; right: 110px; top: 7px")
+        .text("Toggle Grid");
+
 
 	var x_select = d3.select(this.selector)
 			.insert("div")
-			.attr("style", "position: absolute; z-index: 100;"+
-				"right:"+(analytics.margin.right)+"px;"+
-				"top:"+(height+20)+"px;"+
-				"bottom:"+(analytics.margin.bottom + 28)+"px;")
-			.append("select")
-			.attr("style", "width: 20px;");
+				.attr("class", "xselectdropdown")
+				.attr("style", "position: absolute; z-index: 100;"+
+					"right:"+(analytics.margin.right)+"px;"+
+					"top:"+(height+20)+"px;")
+				.append("select")
+					.attr("style", "width: 20px;");
 
 
 	x_select.on("change", function(d) {
@@ -263,7 +285,7 @@ scatterPlot.prototype.render = function(){
 
 	if (this.col_date.indexOf(this.sel_x) != -1){
 		xScale = d3.time.scale().range([0, width]);
-		format_x = d3.time.format('%x');
+		format_x = d3.time.format(self.format_date);
 	}else{
 		xScale = d3.scale.linear().range([0, width]);
 		format_x = d3.format('s');
@@ -276,7 +298,7 @@ scatterPlot.prototype.render = function(){
 
 	if (this.col_date.indexOf(this.sel_y) != -1){
 		yScale = d3.time.scale().range([height, 0]);
-		format_y = d3.time.format('%x');
+		format_y = d3.time.format(self.format_date);
 	}else{
 		yScale = d3.scale.linear().range([height, 0]);
 		format_y = d3.format('s');
@@ -323,8 +345,9 @@ scatterPlot.prototype.render = function(){
 			return d[self.sel_y[i]];
 		});
 
-		// If the parameter minimum is bigger then a previously set minimum overwrite it
-		if(tmp_domain[0] > yScale.domain()[0]){
+		// If the parameter minimum is bigger then a previously set minimum and the 
+		// currently set minimum is not the default 0 overwrite it
+		if(tmp_domain[0] > yScale.domain()[0] && yScale.domain()[0] != 0){
 			tmp_domain[0] = yScale.domain()[0];
 		}
 		// If the parameter maximum is lower then a previously set maximum overwrite it
@@ -351,7 +374,7 @@ scatterPlot.prototype.render = function(){
 		.attr("fill", "transparent");
 
 	// Add clip path so only points in the area are shown
-	svg.append("defs").append("clipPath")
+	var clippath = svg.append("defs").append("clipPath")
 		.attr("id", "clip")
 	    .append("rect")
 	        .attr("width", width)
@@ -368,14 +391,7 @@ scatterPlot.prototype.render = function(){
 	}
 
 
-
-	// Add checkbox for grid visualization
-	this.grid_active = false;
-	this.gridselector = d3.select(this.selector).append('input').attr('type','checkbox');
-	this.gridselector.attr("style", ("position: absolute; top:" + 20 +"px; left:"+(parseInt(width/2) + this.margin.left)+"px;"));
-
-
-	this.gridselector.on("change", function() {
+	this.gridselector.on("click", function() {
 		self.grid_active = !self.grid_active;
 		// If grid is selected we expand the tick size to cover the whole plot
 		if(self.grid_active){
@@ -547,12 +563,21 @@ scatterPlot.prototype.render = function(){
 
 	 	height = parseInt(height/100 * 60);
 
+	 	svg_container.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
+
+	 	$(x_select.node().parentNode)
+			.attr("style", "position: absolute; z-index: 100;"+
+				"right:"+(analytics.margin.right)+"px;"+
+				"top:"+(height+20)+"px;");
+
+	 	clippath.attr("width", width).attr("height", height);
+
 	    // Update the range of the scale with new width/height
 	    xScale.range([0, width]);
 	    yScale.range([height, 0]);
 
-	    legend.select("rect")
-			.attr("x", width - 18)
+	    legend.select("circle")
+			.attr("cx", width - 15)
 		
 		legend.select("text")
 			.attr("x", width - 24)
@@ -560,7 +585,7 @@ scatterPlot.prototype.render = function(){
 	    // update x axis label position
 	    svg.select('.x.axis')
 	    	.select('.label')
-	    	.attr("x", width);
+	    	.attr("x", width - 10);
 
 
 	    if(self.grid_active){
@@ -602,7 +627,7 @@ scatterPlot.prototype.render = function(){
 
 	}
 
-	d3.select(window).on('resize', resize); 
+	$(window).resize(resize);
 
 
 
@@ -649,7 +674,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	var uniqueArray = [];
 	var domain = [];
 
-	var parameters = this.headerNames;
+	// Clone array
+	var parameters = this.headerNames.slice(0);
 
 	// Remove parameters which are vectors and additionally timestamp
 	_.each(this.col_vec.concat("Timestamp").concat("active").concat("F_wmm2010"), function(n){
@@ -727,10 +753,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	self.active_brushes.forEach (function(p) {
 		y[p].brush.extent(self.brush_extents[p]);
 	});
-
-	var y_linear = d3.scale.linear()
-	    .domain([0, 20])
-	    .range([0, height]);
 
 
 	parameters.forEach(function(para) {
@@ -837,6 +859,47 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		self.parallelsPlot();
 
 	}
+
+	// Resize method, recalculates position of all elements in svg
+	function resize_parallels() {
+	    var	width = $(self.selector).width() - self.margin.left - self.margin.right,
+			height = $(self.selector).height() - self.margin.top - self.margin.bottom;
+
+		height = parseInt(height/100 * 40);
+		height-=30;
+
+
+		x.rangePoints([0,width]);
+
+
+		parameters.forEach(function(para) {
+
+			y[para].range([0,height]);
+
+			var bar = svg.selectAll("." + para)
+			    .attr("transform", function(d) { 
+			    	return "translate(" + x(para) + "," + (y[para](d.x) - height/hist_data[para].length) + ")";
+			    });
+
+			bar.append("rect")
+			    .attr("width", function(d) {
+			    	return x_hist[para](d.y);
+				});
+
+		});
+
+		// Add a group element for each trait.
+		svg.selectAll(".trait")
+		    .attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+
+		svg.selectAll('.axis')
+		    .each(function(d) { 
+		    	d3.select(this).call(axis.scale(y[d]));
+		    })
+
+	}
+
+	$(window).resize(resize_parallels);
 }
 
 
