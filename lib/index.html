@@ -11,11 +11,18 @@
         <meta name="viewport" content="width=device-width">
 
         <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
-        <link rel="stylesheet" href="styles/main.css"/>
+        <!-- build:css(.tmp) styles/main.css -->
+            <link rel="stylesheet" href="styles/main.css">
+        <!-- endbuild -->
 
-        <link rel="stylesheet" href="styles/analytics.min.css"/>
+        <!-- build:css(.tmp) styles/analytics.min.css -->
+            <link rel="stylesheet" href="styles/analytics.css">
+            <link rel="stylesheet" href="styles/sumoselect.css">
+        <!-- endbuild -->
 
-        <link rel="stylesheet" href="styles/analytics_plugins.css"/>
+        <!-- build:css(.tmp) styles/analytics_plugins.css -->
+            <link href="bower_components/nvd3/nv.d3.min.css" rel="stylesheet" type="text/css">
+        <!-- endbuild -->
 
 
     </head>
@@ -24,18 +31,28 @@
             <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
 
-        <div id="canvas" style="width:100%;height:100%;position:absolute;display:block"></div>
-        <div style="position:absolute">
-            <p><a class="btn btn-lg btn-success scatter" href="#" onclick="onscatterPlot()">ScatterPlot</a></p>
-            <p><a class="btn btn-lg btn-success boxplot" href="#" onclick="onboxPlot()">BoxPlot</a></p>
-            <p><a class="btn btn-lg btn-success stacked" href="#" onclick="onstackedPlot()">Stacked Bars</a></p>
-            <p><a class="btn btn-lg btn-success parallel" href="#" onclick="onparallelsPlot()">Parallel</a></p>
-            <p><a class="btn btn-lg btn-success parallel" href="#" onclick="onlinePlot()">Line</a></p>
+        <div id="canvas" style="width:100%;height:100%;position:absolute;display:block;top:0px; padding: 25px"></div>
+        
+        <div style="position:absolute; left:50%; top:0px">
+            <div class="dropdown">
+                <a class="btn btn-primary dropdown-toggle" data-toggle="dropdown" href="#">Plot type</a>
+                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                    <li><a tabindex="-1" href="#" onclick="onscatterPlot()">ScatterPlot</a></li>
+                    <li><a tabindex="-1" href="#" onclick="onboxPlot()">BoxPlot</a></li>
+                    <li><a tabindex="-1" href="#" onclick="onstackedPlot()">Stacked Bars</a></li>
+                    <li><a tabindex="-1" href="#" onclick="onparallelsPlot()">Parallel</a></li>
+                    <li><a tabindex="-1" href="#" onclick="onlinePlot()">Line</a></li>
+                </ul>
+            </div>
         </div>
 
 
 
-        <script src="scripts/vendor.js"></script>
+        <!-- build:js scripts/vendor.js -->
+        <!-- bower:js -->
+        <script src="bower_components/jquery/jquery.js"></script>
+        <!-- endbower -->
+        <!-- endbuild -->
 
         <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
         <script>
@@ -47,7 +64,9 @@
             ga('create','UA-XXXXX-X');ga('send','pageview');
         </script>
 
-        <script src="scripts/main_analytics.js"></script>
+        <!-- build:js scripts/main_analytics.js -->
+        <script src="scripts/main.js"></script>
+        <!-- endbuild -->
 
 
         <script src="bower_components/sass-bootstrap/dist/js/bootstrap.min.js"></script>
@@ -57,7 +76,20 @@
 
         
 
-		<script src="scripts/analytics.min.js"></script>
+		<!-- build:js scripts/analytics.min.js -->
+        <script src="scripts/box.js"></script>
+        <script src="scripts/fisheye.js"></script>
+        <script src="scripts/scatter.js"></script>
+        <script src="scripts/analytics.js"></script>
+        <!-- endbuild -->
+
+
+        <!-- build:js scripts/vendor.min.js -->
+        <script src="scripts/vendor/jquery.sumoselect.js"></script>
+        <script src="scripts/vendor/rgbcolor.js"></script>
+        <script src="scripts/vendor/StackBlur.js"></script>
+        <script src="scripts/vendor/canvg.js"></script>
+        <!-- endbuild -->
 
 
 </body>
