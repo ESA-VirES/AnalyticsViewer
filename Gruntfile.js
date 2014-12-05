@@ -160,7 +160,7 @@ module.exports = function (grunt) {
             options: {
                 mangle: {
                     except: ['$', 'd3'],
-                    toplevel: true
+                    toplevel: false
                 }
             }
         },
