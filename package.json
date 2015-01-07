@@ -1,7 +1,9 @@
 {
   "name": "analyticsviewer",
   "version": "0.0.8",
-  "dependencies": {},
+  "dependencies": {
+    "jquery.sumoselect": "git@github.com:HemantNegi/jquery.sumoselect.git#~1.2.0"
+  },
   "devDependencies": {
     "grunt": "~0.4.1",
     "grunt-contrib-copy": "~0.4.1",
