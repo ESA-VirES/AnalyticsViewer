@@ -307,7 +307,8 @@
                     var ua = navigator.userAgent || navigator.vendor || window.opera;
 
                     // Checks for iOs, Android, Blackberry, Opera Mini, and Windows mobile devices
-                    for (var i in settings.nativeOnDevice) if (ua.toLowerCase().indexOf(settings.nativeOnDevice[i].toLowerCase()) > 0) return settings.nativeOnDevice[i];
+                    // TODO: This throws error for some reason (not defined)
+                    //for (var i in settings.nativeOnDevice) if (ua.toLowerCase().indexOf(settings.nativeOnDevice[i].toLowerCase()) > 0) return settings.nativeOnDevice[i];
                     return false;
                 },
 
