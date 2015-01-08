@@ -354,6 +354,8 @@ function onscatterPlot(){
 		//sp.colatitude("undefined");
 	}, function(values){
 		console.log(values);
+	}, function(){
+		console.log("Mouse out");
 	});
 
 

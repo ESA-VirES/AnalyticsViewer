@@ -3,10 +3,11 @@
 
 
 
-function scatterPlot(args, callback, mouseover) {
+function scatterPlot(args, callback, mouseover, mouseout) {
 
 	//this.margin = {top: 20, right: 20, bottom: 90, left: 70};
 	this.mouseover = mouseover;
+	this.mouseout = mouseout;
 	this.margin = {top: 0, right: 120, bottom: 0, left: 0};
 	this.headerNames = null;
 	this.selector = args.selector;
@@ -521,6 +522,8 @@ scatterPlot.prototype.render = function(){
 	            self.tooltip.transition()        
 	                .duration(100)      
 	                .style("opacity", 0);
+
+	            self.mouseout();
 	        });
     }
 
