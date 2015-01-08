@@ -3,9 +3,10 @@
 
 
 
-function scatterPlot(args, callback) {
+function scatterPlot(args, callback, mouseover) {
 
 	//this.margin = {top: 20, right: 20, bottom: 90, left: 70};
+	this.mouseover = mouseover;
 	this.margin = {top: 0, right: 120, bottom: 0, left: 0};
 	this.headerNames = null;
 	this.selector = args.selector;
@@ -499,6 +500,9 @@ scatterPlot.prototype.render = function(){
 			.style("stroke", function(d) { return self.colors(d.id); })
 
 			.on("mouseover", function(d) {
+
+				self.mouseover(d);
+
 				var values = "";
 				for(var propName in d) {
 				    propValue = d[propName]

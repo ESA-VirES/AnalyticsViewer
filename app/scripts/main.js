@@ -352,6 +352,8 @@ function onscatterPlot(){
 	var sp = new scatterPlot(args, function(){
 		//sp.absolute("id1","Latitude");
 		//sp.colatitude("undefined");
+	}, function(values){
+		console.log(values);
 	});
 
 
