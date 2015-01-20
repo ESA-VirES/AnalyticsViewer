@@ -38,7 +38,7 @@ function scatterPlot(args, callback, mouseover, mouseout) {
 		//this.data = ;
 		this.parseData(d3.csv.parse(args.data));
 		this.render();
-
+		self.parallelsPlot();
 	    callback();
 	}
 	
@@ -57,7 +57,18 @@ scatterPlot.prototype.parseData = function parseData(values){
 	self.data = values;
 	// Extract the list of dimensions
     // For each dimension, guess if numeric value or not and create vert scales
-    all_dims = d3.keys(self.data[0]) ;
+    all_dims = d3.keys(self.data[0]);
+    var residuals = false;
+    var res_key = "";
+
+    d3.keys(self.data[0]).filter(function(key) {
+    	if (key.indexOf("_res_") > -1)
+    		residuals = true;
+
+    	if (key.indexOf("F_res_") > -1)
+    		res_key = key;
+    });
+
     // Filter hidden dimensions
     dimensions = d3.keys(self.data[0]).filter(function(key) {
     	// TODO temporary if to remove flags, shall be removed
@@ -69,6 +80,7 @@ scatterPlot.prototype.parseData = function parseData(values){
     		key.indexOf("error") > -1 ||
     		key.indexOf("dB_") > -1 ||
     		key.indexOf("VFM") > -1 ||
+    		key.indexOf("Radius") > -1 ||
     		key.indexOf("Status") > -1 ){
     		self.data.forEach (function(p) {delete p[key];}) ; 
     	}else{
@@ -91,15 +103,17 @@ scatterPlot.prototype.parseData = function parseData(values){
 		    					case 2: new_key="B_C"; break;
 		    				}
 		    				//new_key = key + new_key;
-		    				p[new_key] = parseFloat(vector[i]);
+		    				if(!residuals)
+		    					p[new_key] = parseFloat(vector[i]);
 
-		    			}else if(key == "B_NEC_res_chaos5"){
+		    			}else if(key.indexOf( "B_NEC_res_" ) > -1){
 		    				// vector[i] = parseFloat(vector[i]);
+		    				var id = key.replace("B_NEC_res_", "");
 		    				var new_key;
 		    				switch (i){
-		    					case 0: new_key="B_N_res"; break;
-		    					case 1: new_key="B_E_res"; break;
-		    					case 2: new_key="B_C_res"; break;
+		    					case 0: new_key=("B_N_res_"+id); break;
+		    					case 1: new_key=("B_E_res_"+id); break;
+		    					case 2: new_key=("B_C_res_"+id); break;
 		    				}
 		    				//new_key = key + new_key;
 		    				p[new_key] = parseFloat(vector[i]);
@@ -114,8 +128,13 @@ scatterPlot.prototype.parseData = function parseData(values){
 	    	}else if (value = parseFloat(self.data[1][key])){
 	    		self.data.forEach (function(p) {p[key] = parseFloat(p[key]);}) ;
 	    	}
+
+	    	if(residuals && key == "F"){
+    			self.data.forEach (function(p) {delete p[key];}) ; 
+    		}
 	    }
 	});
+
 
 	// Create colorscale for all available parameters
 
@@ -143,6 +162,10 @@ scatterPlot.prototype.parseData = function parseData(values){
 
 	self.sel_x = "Latitude";
 	self.sel_y = ["F"];
+
+	if(residuals){
+		self.sel_y = [res_key];
+	}
 }
 
 scatterPlot.prototype.render = function(){
