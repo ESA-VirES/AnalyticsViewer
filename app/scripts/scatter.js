@@ -80,7 +80,6 @@ scatterPlot.prototype.parseData = function parseData(values){
     		key.indexOf("error") > -1 ||
     		key.indexOf("dB_") > -1 ||
     		key.indexOf("VFM") > -1 ||
-    		key.indexOf("Radius") > -1 ||
     		key.indexOf("Status") > -1 ){
     		self.data.forEach (function(p) {delete p[key];}) ; 
     	}else{
@@ -179,6 +178,7 @@ scatterPlot.prototype.render = function(){
 
 
 	d3.select(this.selector).append("canvas")   
+		.attr("id", "imagerenderer")
         .attr("width", $(this.selector).width())
         .attr("height", $(this.selector).height())
         .attr("style", "display: none");
@@ -197,7 +197,7 @@ scatterPlot.prototype.render = function(){
 			.attr("xmlns", "http://www.w3.org/2000/svg")
 			.node().parentNode.innerHTML;
 
-		var c = document.querySelector("canvas");
+		var c = document.getElementById("imagerenderer");
 		var ctx = c.getContext('2d');
 		ctx.drawSvg(html, 0, 0, $(this.selector).width(), height);
 
