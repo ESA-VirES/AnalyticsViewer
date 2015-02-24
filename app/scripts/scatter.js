@@ -3,11 +3,13 @@
 
 
 
-function scatterPlot(args, callback, mouseover, mouseout) {
+function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 
 	//this.margin = {top: 20, right: 20, bottom: 90, left: 70};
 	this.mouseover = mouseover;
 	this.mouseout = mouseout;
+	this.filterset = filterset;
+	this.callback = callback;
 	this.margin = {top: 0, right: 120, bottom: 0, left: 0};
 	this.headerNames = null;
 	this.selector = args.selector;
@@ -15,16 +17,29 @@ function scatterPlot(args, callback, mouseover, mouseout) {
 	this.parameter_colors = null;
 	this.col_date = [] ;
 	this.col_vec = [] ;
-	this.sel_x = "";
-	this.sel_y = [];
+	this.grid_active = false;
+	this.sel_x = "Latitude";
+	this.sel_y = ["F"];
 	this.identifiers = [];
 	this.active_brushes = [];
 	this.brush_extents = {};
+	this.parameter_color_range = d3.scale.category20().range();
+	this.hist_data = {};
+	this.parameters = null;
+	this.y = null;
+	this.x = null;
+	this.x_hist = null;
+	this.axis = null;
+
 
 	this.tooltip = d3.select("body").append("div")   
         .attr("class", "point-tooltip")
 		.style("opacity", 0);
+	
 
+}
+
+scatterPlot.prototype.loadData = function loadData(args){
 	var self = this;
 
 	if(args.url){
@@ -32,17 +47,14 @@ function scatterPlot(args, callback, mouseover, mouseout) {
 			self.parseData(values);
 			self.render();
 			self.parallelsPlot();
-	    	callback();
+	    	self.callback();
   		});
 	}else if(args.data){
-		//this.data = ;
 		this.parseData(d3.csv.parse(args.data));
 		this.render();
 		self.parallelsPlot();
-	    callback();
+	    self.callback();
 	}
-	
-
 }
 
 
@@ -70,7 +82,7 @@ scatterPlot.prototype.parseData = function parseData(values){
     });
 
     // Filter hidden dimensions
-    dimensions = d3.keys(self.data[0]).filter(function(key) {
+    d3.keys(self.data[0]).filter(function(key) {
     	// TODO temporary if to remove flags, shall be removed
     	if (key.indexOf("Flag") > -1 ||
     		key.indexOf("ASM") > -1 ||
@@ -135,9 +147,10 @@ scatterPlot.prototype.parseData = function parseData(values){
 	});
 
 
-	// Create colorscale for all available parameters
 
-	this.parameter_colors = d3.scale.ordinal().domain(dimensions).range(d3.scale.category20().range().reverse());
+	// Create colorscale for all available parameters
+	
+	self.parameter_colors = d3.scale.ordinal().domain(d3.keys(self.data[0])).range(self.parameter_color_range);
 
 	// Add an active tag to know if row is filtered out or not, used for filtering with parallels
 	// Initially all set to true, as no filters yet active
@@ -147,10 +160,8 @@ scatterPlot.prototype.parseData = function parseData(values){
 	self.headerNames.sort();
 	self.identifiers = d3.set(self.data.map(function(d){return d.id;})).values();
 
-	if(self.colors)
-		self.colors = arg.colors;
-	else
-		self.colors = d3.scale.ordinal().domain(self.identifiers).range(d3.scale.category10().range());
+	//if(!self.colors)
+	self.colors = d3.scale.ordinal().domain(self.identifiers).range(d3.scale.category10().range());
 		
 
 	// Remove id element
@@ -159,12 +170,35 @@ scatterPlot.prototype.parseData = function parseData(values){
 		self.headerNames.splice(index, 1);
 	}
 
-	self.sel_x = "Latitude";
-	self.sel_y = ["F"];
+	// Check if selections are still available in newly loaded data
+	var new_sel_y = [];
+	var new_sel_x = null;
 
-	if(residuals){
-		self.sel_y = [res_key];
+	self.sel_y.forEach(function(par){
+		if(self.headerNames.indexOf(par) > -1){
+			new_sel_y.push(par);
+		}
+	});
+
+	if(new_sel_y.length>0){
+		self.sel_y = new_sel_y;
+	}else{
+		if(residuals)
+			self.sel_y = [res_key];
+		else
+			self.sel_y = ["F"];
 	}
+
+	if(self.headerNames.indexOf(self.sel_x) > -1){
+		new_sel_x = self.sel_x;
+	}
+
+	if(new_sel_x)
+		self.sel_x = new_sel_x;
+	else
+		self.sel_x = "Latitude";
+
+	
 }
 
 scatterPlot.prototype.render = function(){
@@ -213,7 +247,7 @@ scatterPlot.prototype.render = function(){
 	});
 
 	// Add button for grid toggle
-	this.grid_active = false;
+	
 	this.gridselector = d3.select(this.selector).append("button")   
         .attr("type", "button")
         .attr("class", "btn btn-success")
@@ -222,34 +256,8 @@ scatterPlot.prototype.render = function(){
         .text("Toggle Grid");
 
 
-	var x_select = d3.select(this.selector)
-			.insert("div")
-				.attr("class", "xselectdropdown")
-				.attr("style", "position: absolute; z-index: 100;"+
-					"right:"+(analytics.margin.right)+"px;"+
-					"top:"+(height+20)+"px;")
-				.append("select")
-					.attr("style", "width: 20px;");
 
-
-	x_select.on("change", function(d) {
-			self.sel_x = d3.select(this).property("value");
-			self.render();
-			self.parallelsPlot();
-		}
-	);
-
-	x_select.selectAll("option")
-		.data(this.headerNames)
-		.enter()
-		.append("option")
-		.text(function (d) { 
-			if(self.sel_x == d)
-				d3.select(this).attr("selected","selected");
-			return d; 
-	});
-
-	var y_select = d3.select(this.selector)
+    var y_select = d3.select(this.selector)
 			.insert("div")
 			.attr("style", "position: absolute;"+
 				"margin-left:"+(analytics.margin.left + 10)+
@@ -257,6 +265,7 @@ scatterPlot.prototype.render = function(){
 			.append("select")
 				.attr("multiple", "multiple");
 
+		
 
 	y_select.selectAll("option")
 		.data(this.headerNames)
@@ -265,8 +274,21 @@ scatterPlot.prototype.render = function(){
 		.text(function (d) { 
 			if(self.sel_y.indexOf(d) != -1)
 				d3.select(this).attr("selected","selected");
+
+			// Renaming of keys introducing subscript
+			var newkey = "";
+			var parts = d.split("_");
+			if (parts.length>1){
+				newkey = parts[0];
+				for (var i=1; i<parts.length; i++){
+					newkey+=(" "+parts[i]).sub();
+				}
+			}else{
+				newkey = d;
+			}
+
 			d3.select(this).attr("value", d)
-			return d; 
+			return newkey; 
 		});
 
 	$(y_select).SumoSelect({ okCancelInMulti: true });
@@ -285,9 +307,6 @@ scatterPlot.prototype.render = function(){
 	
 	});
 
-	var color = d3.scale.category10();
-
-
 
 	// Definition and creation of scatter plot svg element with available size
 
@@ -302,6 +321,53 @@ scatterPlot.prototype.render = function(){
 	  	.append("g")
 	    .attr("transform", "translate(" + analytics.margin.left + "," + analytics.margin.top + ")");
 
+
+	var x_select = svg_container
+		.insert("div")
+			.attr("class", "xselectdropdown")
+			.attr("style", "position: relative; z-index: 150;"+
+				"float:right;"+
+				"bottom:25px;")
+			.append("select")
+				.attr("style", "width: 100px;");
+
+		
+
+	x_select.selectAll("option")
+		.data(this.headerNames)
+		.enter()
+		.append("option")
+		.text(function (d) { 
+
+			if(self.sel_x == d)
+				d3.select(this).attr("selected","selected");
+
+			// Renaming of keys introducing subscript
+			var newkey = "";
+			var parts = d.split("_");
+			if (parts.length>1){
+				newkey = parts[0];
+				for (var i=1; i<parts.length; i++){
+					newkey+=(" "+parts[i]).sub();
+				}
+			}else{
+				newkey = d;
+			}
+
+			d3.select(this).attr("value", d)
+			return newkey; 
+		});
+
+	$(x_select).SumoSelect({ okCancelInMulti: false });
+
+
+	$(".xselectdropdown").find(".SumoSelect").change(function(evt){
+
+		self.sel_x = $(this).find(".optWrapper .selected").data().val;
+		self.render();
+		self.parallelsPlot();
+	
+	});
 	
 
 	// Definition X scale, domain and format
@@ -448,6 +514,20 @@ scatterPlot.prototype.render = function(){
 	      .call(yAxis);
 	});
 
+	// Renaming of selected key introducing subscript
+	var newkey = "";
+	var parts = this.sel_x.split("_");
+	if (parts.length>1){
+		newkey = "<tspan>"+parts[0]+"</tspan>";
+		for (var i=1; i<parts.length; i++){
+			var modifier = "";
+			if(i==1)
+				modifier = ' dy="5"';
+			newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+		}
+	}else{
+		newkey = this.sel_x;
+	}
 
 	// Add ticks for X axis
 	svg.append("g")
@@ -457,9 +537,34 @@ scatterPlot.prototype.render = function(){
 		.append("text")
 			.attr("class", "label")
 			.attr("x", width - 10)
-			.attr("y", -6)
+			.attr("y", -10)
 			.style("text-anchor", "end")
-			.text(this.sel_x);
+			.html(newkey);
+
+	// Renaming of selected key introducing subscript
+	var combinednewkey = [];
+	for (var i = 0; i < this.sel_y.length; i++) {
+		var newkey = "";
+		var parts = this.sel_y[i].split("_");
+		if (parts.length>1){
+			newkey = "<tspan>"+parts[0]+"</tspan>";
+			for (var j=1; j<parts.length; j++){
+				var modifier = "";
+				if(j==1)
+					modifier = ' dy="5"';
+				newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[j]+'</tspan>';
+			}
+		}else{
+			newkey = this.sel_x;
+		}
+		combinednewkey.push(newkey);
+	};
+
+	combinednewkey = combinednewkey.join("; ");
+
+	combinednewkey = combinednewkey.replace(/(?!^)dy="5"/g, '');
+
+	
 
 	// Add ticks for Y axis
 	svg.append("g")
@@ -472,7 +577,7 @@ scatterPlot.prototype.render = function(){
 			.attr("y", 6)
 			.attr("dy", "1em")
 			.style("text-anchor", "end")
-			.text(this.sel_y);
+			.html(combinednewkey);
 
 
 	// In order to work with the canvas renderer styles need to be applied directlo
@@ -484,15 +589,39 @@ scatterPlot.prototype.render = function(){
       	.attr("shape-rendering", "crispEdges")
       	.attr("fill", "none");
 
-    svg.selectAll('.axis line')
-      	.attr("stroke-width", "2")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("stroke", "#000");
-
     svg.selectAll('.axis path')
       	.attr("stroke-width", "2")
       	.attr("shape-rendering", "crispEdges")
       	.attr("stroke", "#000");
+
+    // Check if grid active and adapt style accordingly
+  	if(self.grid_active){
+
+		svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#D3D3D3");
+
+		xAxis.tickSize(-height);
+		yAxis.tickSize(-width);
+		
+
+	}else{
+		xAxis.tickSize(5);
+		yAxis.tickSize(5);
+
+		svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#000");
+	}
+
+	// Update Axis to draw lines
+	svg.select('.x.axis')
+      .call(xAxis);
+
+    svg.select('.y.axis')
+      .call(yAxis);
 
 
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
@@ -595,22 +724,29 @@ scatterPlot.prototype.render = function(){
 
 	 	svg_container.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
 
-	 	$(x_select.node().parentNode)
-			.attr("style", "position: absolute; z-index: 100;"+
-				"right:"+(analytics.margin.right)+"px;"+
-				"top:"+(height+20)+"px;");
-
 	 	clippath.attr("width", width).attr("height", height);
+
+	 	// Update Rect size
+	 	// Add rect to allow zoom and pan interaction over complete graph
+		svg.select("rect")
+			.attr("width", width)
+			.attr("height", height);
 
 	    // Update the range of the scale with new width/height
 	    xScale.range([0, width]);
 	    yScale.range([height, 0]);
 
-	    legend.select("circle")
-			.attr("cx", width - 15)
-		
-		legend.select("text")
-			.attr("x", width - 24)
+	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
+		    // Update legend for available unique identifiers
+			var legend = svg.select(".legend_"+self.sel_y[i])
+			legend.select("circle")
+				.attr("cx", width - 15)
+			
+			legend.select("text")
+				.attr("x", width - 24)
+		}
+
+	   
 
 	    // update x axis label position
 	    svg.select('.x.axis')
@@ -660,7 +796,6 @@ scatterPlot.prototype.render = function(){
 	$(window).resize(resize);
 
 
-
 }
 
 
@@ -704,14 +839,16 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	var uniqueArray = [];
 	var domain = [];
 
+	var self = this;
+
 	// Clone array
-	var parameters = this.headerNames.slice(0);
+	this.parameters = this.headerNames.slice(0);
 
 	// Remove parameters which are vectors and additionally timestamp
 	_.each(this.col_vec.concat("Timestamp").concat("active").concat("F_wmm2010"), function(n){
-		var index = parameters.indexOf(n);
+		var index = self.parameters.indexOf(n);
 		if (index > -1) {
-			parameters.splice(index, 1);
+			self.parameters.splice(index, 1);
 		}
 	});
 
@@ -722,23 +859,24 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	height = parseInt(height/100 * 40);
 	height-=30;
 
-	var x = d3.scale.ordinal().domain(parameters).rangePoints([0, width]),
-	    y = {};
-	    hist_data = {};
-	    x_hist = {};
+	this.x_hist = {};
+	this.hist_data = {};
+	this.y = {};
+	this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
+	this.axis = d3.svg.axis().orient("left");
 
 	var line = d3.svg.line(),
-	    axis = d3.svg.axis().orient("left"),
 	    foreground;
 
 	// User general formatting for ticks on Axis
-	axis.tickFormat(d3.format("g"));
+	this.axis.tickFormat(d3.format("g"));
 
 
 	var svg = d3.select(this.selector).append("svg")
 		.attr("class", "parallels")
 	    .attr("width", width)
 	    .attr("height", height)
+	    .attr("style", "margin-top:-20px; display:inline")
 	  	.append("g")
 	  	.attr("display", "block")
 	    .attr("transform", "translate(" + analytics.margin.left + "," + analytics.margin.top + ")");
@@ -747,16 +885,16 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
     var self = this;
 	// Create a scale and brush for each trait.
-	parameters.forEach(function(d) {
+	self.parameters.forEach(function(d) {
 
-	    y[d] = d3.scale.linear()
+	    self.y[d] = d3.scale.linear()
 	        .range([height, 0])
 	        .domain(d3.extent(self.data, function(data) { 
 	        	return data[d];
 			})).nice();
 
-	    y[d].brush = d3.svg.brush()
-	        .y(y[d])
+	    self.y[d].brush = d3.svg.brush()
+	        .y(self.y[d])
 	        .on("brushend", brushend);
 
 
@@ -767,13 +905,13 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
     	});
 
 	    // Generate a histogram using twenty uniformly-spaced bins.
-		hist_data[d] = d3.layout.histogram()
-		    .bins(y[d].ticks(60))
+		self.hist_data[d] = d3.layout.histogram()
+		    .bins(self.y[d].ticks(60))
 		    (transformed_data);
 		    //(values);
 
-		x_hist[d] = d3.scale.linear()
-		    .domain([0, d3.max(hist_data[d], function(data) { 
+		self.x_hist[d] = d3.scale.linear()
+		    .domain([0, d3.max(self.hist_data[d], function(data) { 
 		    	return data.length;
 		    })])
 		    .range([0, 40]);
@@ -781,50 +919,66 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 	// If there were active brushes before re-rendering set the brush extents again
 	self.active_brushes.forEach (function(p) {
-		y[p].brush.extent(self.brush_extents[p]);
+		self.y[p].brush.extent(self.brush_extents[p]);
 	});
 
 
-	parameters.forEach(function(para) {
+	self.parameters.forEach(function(para) {
 
 		var bar = svg.selectAll("." + para)
-		    .data(hist_data[para])
+		    .data(self.hist_data[para])
 		  	.enter().append("g")
 		    .attr("class", "bar "+para)
 		    .attr("transform", function(d) { 
-		    	return "translate(" + x(para) + "," + (y[para](d.x) - height/hist_data[para].length) + ")";
+		    	return "translate(" + self.x(para) + "," + (self.y[para](d.x) - height/self.hist_data[para].length) + ")";
 		    });
 
 		bar.append("rect")
 		    .attr("height", 
-		    	height/hist_data[para].length - 1
+		    	height/self.hist_data[para].length - 1
 		    )
 		    .attr("width", function(d) {
-		    	return x_hist[para](d.y);
+		    	return self.x_hist[para](d.y);
 			})
 			.style("fill", "#1F77B4");
 
 	});
 
-	var colors = d3.scale.category10().domain(uniqueArray);
+	//var colors = d3.scale.category10().domain(uniqueArray);
 
 	// Add a group element for each trait.
 	var g = svg.selectAll(".trait")
-	    .data(parameters)
+	    .data(self.parameters)
 	    .enter().append("svg:g")
 	    .attr("class", "trait")
-	    .attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+	    .attr("transform", function(d) { return "translate(" + self.x(d) + ")"; });
 		  
 	// Add an axis and title.
 	g.append("svg:g")
 	    .attr("class", "axis")
 	    .each(function(d) { 
-	    	d3.select(this).call(axis.scale(y[d]));
+	    	d3.select(this).call(self.axis.scale(self.y[d]));
 	    })
 	    .append("svg:text")
 	    .attr("text-anchor", "middle")
-	    .attr("y", -9)
-	    .text(String);
+	    .attr("y", -12)
+	    .html(function (d) { 
+			// Renaming of keys introducing subscript
+			var newkey = "";
+			var parts = d.split("_");
+			if (parts.length>1){
+				newkey = "<tspan>"+parts[0]+"</tspan>";
+				for (var i=1; i<parts.length; i++){
+					var modifier = "";
+					if(i==1)
+						modifier = ' dy="5"';
+					newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+				}
+			}else{
+				newkey = d;
+			}
+			return newkey; 
+		});
 
 
 	// In order to work with the canvas renderer styles need to be applied directlo
@@ -850,24 +1004,25 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	// Add a brush for each axis.
 	g.append("svg:g")
 	    .attr("class", "brush")
-	    .each(function(d) { d3.select(this).call(y[d].brush); })
+	    .each(function(d) { d3.select(this).call(self.y[d].brush); })
 	    .selectAll("rect")
 	    .attr("x", -8)
 	    .attr("width", 16);
 
 	// Returns the path for a given data point.
 	function path(d) {
-		return line(parameters.map(function(p) {
-		  	return [x(p), y[p](d[p])];
+		return line(self.parameters.map(function(p) {
+		  	return [x(p), self.y[p](d[p])];
 		}));
 	}
 
 	// Handles a brush event, toggling the display of foreground lines.
 	function brushend(parameter) {
 		
-		self.active_brushes = parameters.filter(function(p) { return !y[p].brush.empty(); });
+		self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
 		self.brush_extents = {};
-		self.active_brushes.map(function(p) { self.brush_extents[p] = y[p].brush.extent(); });
+		self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
+		var filter = {};
 
 		var active;
 		
@@ -876,6 +1031,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			active = true;
 
 			self.active_brushes.forEach (function(p) {
+				filter[p] = self.brush_extents[p];
 		    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
 		    		active = false;
 		    	}
@@ -885,6 +1041,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 		}); 
 
+		self.filterset(filter);
+
 		self.render();
 		self.parallelsPlot();
 
@@ -892,6 +1050,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 	// Resize method, recalculates position of all elements in svg
 	function resize_parallels() {
+
 	    var	width = $(self.selector).width() - self.margin.left - self.margin.right,
 			height = $(self.selector).height() - self.margin.top - self.margin.bottom;
 
@@ -899,35 +1058,44 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		height-=30;
 
 
-		x.rangePoints([0,width]);
+		self.x.rangePoints([0,width]);
+
+		var hd = self.hist_data;
+		var yobj = self.y;
 
 
-		parameters.forEach(function(para) {
+		self.parameters.forEach(function(para) {
 
-			y[para].range([0,height]);
+			yobj[para].range([height,0]);
 
 			var bar = svg.selectAll("." + para)
 			    .attr("transform", function(d) { 
-			    	return "translate(" + x(para) + "," + (y[para](d.x) - height/hist_data[para].length) + ")";
+			    	return "translate(" + self.x(para) + "," + (yobj[para](d.x) - height/hd[para].length) + ")";
 			    });
 
 			bar.append("rect")
 			    .attr("width", function(d) {
-			    	return x_hist[para](d.y);
+			    	return self.x_hist[para](d.y);
 				});
 
 		});
 
 		// Add a group element for each trait.
 		svg.selectAll(".trait")
-		    .attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+			.data(self.parameters)
+		    .attr("transform", function(d) { 
+		    	return "translate(" + self.x(d) + ")";
+		     });
 
 		svg.selectAll('.axis')
+			.data(self.parameters)
 		    .each(function(d) { 
-		    	d3.select(this).call(axis.scale(y[d]));
+		    	d3.select(this).call(self.axis.scale(yobj[d]));
 		    })
 
 	}
+
+	var self = this;
 
 	$(window).resize(resize_parallels);
 }

@@ -51,8 +51,8 @@
                     var O = this;
                     O.E.wrap('<div class="SumoSelect">');
                     O.select = O.E.parent();
-                    O.caption = $('<span></span>');
-                    O.CaptionCont = $('<p class="CaptionCont"><label><i></i></label></p>').addClass('SlectBox').attr('style', O.E.attr('style')).prepend(O.caption);
+                    O.caption = $('<p></p>');
+                    O.CaptionCont = $('<div class="CaptionCont"><label><i></i></label></div>').addClass('SlectBox').attr('style', O.E.attr('style')).prepend(O.caption);
                     O.select.append(O.CaptionCont);
 
                     if(O.E.attr('disabled'))O.select.addClass('disabled')
@@ -290,7 +290,7 @@
                     O.placeholder = O.placeholder ? O.placeholder : settings.placeholder
 
                     //set display text
-                    O.caption.text(O.placeholder);
+                    O.caption.html(O.placeholder);
 
                     //set the hidden field if post as csv is true.
                     csvField = O.select.find('input.HEMANT123');

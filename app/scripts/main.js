@@ -356,7 +356,12 @@ function onscatterPlot(){
 		console.log(values);
 	}, function(){
 		console.log("Mouse out");
+	}, function(filter){
+		console.log(filter);
 	});
+
+	sp.loadData(args);
+
 
 
 }
