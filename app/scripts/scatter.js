@@ -884,6 +884,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 
     var self = this;
+    self.svg = svg;
 	// Create a scale and brush for each trait.
 	self.parameters.forEach(function(d) {
 
@@ -895,7 +896,26 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 	    self.y[d].brush = d3.svg.brush()
 	        .y(self.y[d])
-	        .on("brushend", brushend);
+	        .on("brushend", brushend)
+	        .on("brush", function(param){
+
+	        	var brush_top = self.svg.selectAll('.trait.'+param).selectAll('.resize.n');
+	        	var brush_bottom = self.svg.selectAll('.trait.'+param).selectAll('.resize.s');
+	        	var extent = self.y[param].brush.extent();
+	        	var format = d3.format('.02f');
+
+	        	brush_top.select("text").remove();
+	        	brush_bottom.select("text").remove();
+
+	        	brush_top.append("text")
+	               .text(format(extent[1]))
+	               .style("transform", "translate(15px,0px)");
+	            brush_bottom.append("text")
+	               .text(format(extent[0]))
+	               .style("transform", "translate(15px,0px)");
+
+
+	        });
 
 
 	    var transformed_data = [];
@@ -950,7 +970,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	var g = svg.selectAll(".trait")
 	    .data(self.parameters)
 	    .enter().append("svg:g")
-	    .attr("class", "trait")
+	    //.attr("class", "trait")
+	    .attr("class", function(d) { return "trait " + d; })
 	    .attr("transform", function(d) { return "translate(" + self.x(d) + ")"; });
 		  
 	// Add an axis and title.
