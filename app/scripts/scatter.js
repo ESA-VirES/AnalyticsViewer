@@ -221,8 +221,8 @@ scatterPlot.prototype.render = function(){
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "save")
-        .attr("style", "position: absolute; right: 45px; top: 7px")
-        .text("Save");
+        .attr("style", "position: absolute; right: 149px; top: 7px")
+        .text("Save as Image");
 
 
 	d3.select("#save").on("click", function(){
@@ -252,8 +252,16 @@ scatterPlot.prototype.render = function(){
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "grid")
-        .attr("style", "position: absolute; right: 110px; top: 7px")
+        .attr("style", "position: absolute; right: 275px; top: 7px")
         .text("Toggle Grid");
+
+
+    d3.select(this.selector).append("button")   
+        .attr("type", "button")
+        .attr("class", "btn btn-success")
+        .attr("id", "download_button")
+        .attr("style", "position: absolute; right: 55px; top: 7px")
+        .text("Download");
 
 
 
