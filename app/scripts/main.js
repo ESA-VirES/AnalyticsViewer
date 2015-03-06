@@ -385,12 +385,17 @@ function onboxPlot(){
 
 function onstackedPlot(){
 
-	var args = {
+	/*var args = {
 		selector: "#canvas",
 		data: plotdata
 	};
 
-	analytics.stackedPlot(args);
+	analytics.stackedPlot(args);*/
+	var args = {
+		selector: "#canvas",
+		url: "data/swarmdata.csv"
+	};
+	this.sp.loadData(args);
 }
 
 

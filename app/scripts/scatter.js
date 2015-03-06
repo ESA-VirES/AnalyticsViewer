@@ -198,6 +198,22 @@ scatterPlot.prototype.parseData = function parseData(values){
 	else
 		self.sel_x = "Latitude";
 
+	// Check if there are active brushes/filters which need to be applied
+	if (self.active_brushes.length > 0){
+		_.each(self.data, function(row){
+			active = true;
+			self.active_brushes.forEach (function(p) {
+				// Check if filter parameter is in data
+				if ( row.hasOwnProperty(p) ) {
+			    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
+			    		active = false;
+			    	}
+			    }
+	    	});
+			row["active"] = active ? 1 : 0;
+		}); 
+	}
+
 	
 }
 
@@ -946,21 +962,26 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	});
 
 	// If there were active brushes before re-rendering set the brush extents again
-	var changes = false;
+	var filter_to_remove = [];
 	self.active_brushes.forEach (function(p) {
 		if ( self.y.hasOwnProperty(p) ) {
 		    // Re-set brush
 		    self.y[p].brush.extent(self.brush_extents[p]);
 		}else{
-			// Remove brush from active brushes
-			var index = self.active_brushes.indexOf(p);
-			if (index > -1) {
-				self.active_brushes.splice(index, 1);
-			}
-			changes = true;
+			// Add to remove list
+			filter_to_remove.push(p);
 		}
 	});
-	if (changes){
+	
+	// Remove unnecessary filters
+	for (var i = filter_to_remove.length - 1; i >= 0; i--) {
+		var index = self.active_brushes.indexOf(filter_to_remove[i]);
+		if (index > -1) {
+			self.active_brushes.splice(index, 1);
+		}
+	};
+
+	if (filter_to_remove.length>0){
 		var filter = {};
 		self.active_brushes.forEach (function(p) {
 			filter[p] = self.brush_extents[p];
@@ -1077,18 +1098,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		var active;
 		
 		_.each(self.data, function(row){
-
 			active = true;
-
 			self.active_brushes.forEach (function(p) {
 				filter[p] = self.brush_extents[p];
 		    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
 		    		active = false;
 		    	}
 	    	});
-
 			row["active"] = active ? 1 : 0;
-
 		}); 
 
 		self.filterset(filter);
