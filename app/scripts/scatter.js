@@ -946,6 +946,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	});
 
 	// If there were active brushes before re-rendering set the brush extents again
+	var changes = false;
 	self.active_brushes.forEach (function(p) {
 		if ( self.y.hasOwnProperty(p) ) {
 		    // Re-set brush
@@ -956,8 +957,17 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			if (index > -1) {
 				self.active_brushes.splice(index, 1);
 			}
+			changes = true;
 		}
 	});
+	if (changes){
+		var filter = {};
+		self.active_brushes.forEach (function(p) {
+			filter[p] = self.brush_extents[p];
+    	});
+		self.filterset(filter);
+	}
+		
 
 
 	self.parameters.forEach(function(para) {
