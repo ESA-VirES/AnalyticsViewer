@@ -335,6 +335,8 @@ var plotdata = "id,val1,val2,val3,val4,val5\n"+
 "id4,'2010-07-22T05:38:40Z',0.157337957053,0.0828667750986,0.129449528982,0.969509351777\n";
 */
 
+sp = null;
+
 function onscatterPlot(){
 
 	var colors = d3.scale.ordinal()
@@ -349,7 +351,7 @@ function onscatterPlot(){
 		//colors: colors
 	};
 
-	var sp = new scatterPlot(args, function(){
+	this.sp = new scatterPlot(args, function(){
 		//sp.absolute("id1","Latitude");
 		//sp.colatitude("undefined");
 	}, function(values){
@@ -360,7 +362,7 @@ function onscatterPlot(){
 		console.log(filter);
 	});
 
-	sp.loadData(args);
+	this.sp.loadData(args);
 
 
 
@@ -368,11 +370,17 @@ function onscatterPlot(){
 
 function onboxPlot(){
 
-	var args = {
+	/*var args = {
 		selector: "#canvas",
 		data: plotdata
 	};
-	analytics.boxPlot(args);
+	analytics.boxPlot(args);*/
+	var args = {
+		selector: "#canvas",
+		url: "data/swarmdata2.csv"
+	};
+	this.sp.loadData(args);
+
 }
 
 function onstackedPlot(){

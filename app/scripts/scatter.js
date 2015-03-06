@@ -947,7 +947,16 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 	// If there were active brushes before re-rendering set the brush extents again
 	self.active_brushes.forEach (function(p) {
-		self.y[p].brush.extent(self.brush_extents[p]);
+		if ( self.y.hasOwnProperty(p) ) {
+		    // Re-set brush
+		    self.y[p].brush.extent(self.brush_extents[p]);
+		}else{
+			// Remove brush from active brushes
+			var index = self.active_brushes.indexOf(p);
+			if (index > -1) {
+				self.active_brushes.splice(index, 1);
+			}
+		}
 	});
 
 
@@ -980,7 +989,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	    .enter().append("svg:g")
 	    //.attr("class", "trait")
 	    .attr("class", function(d) { return "trait " + d; })
-	    .attr("transform", function(d) { return "translate(" + self.x(d) + ")"; });
+	    .attr("transform", function(d) { 
+	    	return "translate(" + self.x(d) + ")"; 
+	    });
 		  
 	// Add an axis and title.
 	g.append("svg:g")
@@ -1097,30 +1108,39 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			yobj[para].range([height,0]);
 
+			//yobj[para].brush.y(yobj[para]);
+			// TODO: Need for replacement of brushes when modifying height
+	        	
+
 			var bar = svg.selectAll("." + para)
+				.data(self.hist_data[para])
 			    .attr("transform", function(d) { 
 			    	return "translate(" + self.x(para) + "," + (yobj[para](d.x) - height/hd[para].length) + ")";
 			    });
 
-			bar.append("rect")
+			/*bar.append("rect")
 			    .attr("width", function(d) {
 			    	return self.x_hist[para](d.y);
-				});
+				});*/
 
 		});
+
 
 		// Add a group element for each trait.
 		svg.selectAll(".trait")
 			.data(self.parameters)
 		    .attr("transform", function(d) { 
 		    	return "translate(" + self.x(d) + ")";
-		     });
+		    });
+
 
 		svg.selectAll('.axis')
 			.data(self.parameters)
 		    .each(function(d) { 
 		    	d3.select(this).call(self.axis.scale(yobj[d]));
 		    })
+
+		
 
 	}
 
