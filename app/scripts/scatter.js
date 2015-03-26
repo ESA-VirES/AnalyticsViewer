@@ -10,7 +10,7 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.mouseout = mouseout;
 	this.filterset = filterset;
 	this.callback = callback;
-	this.margin = {top: 0, right: 120, bottom: 0, left: 0};
+	this.margin = {top: 10, right: 120, bottom: 0, left: 0};
 	this.headerNames = null;
 	this.selector = args.selector;
 	this.colors = args.colors;
@@ -227,11 +227,13 @@ scatterPlot.prototype.render = function(){
 	$(this.selector).empty()
 
 
-	d3.select(this.selector).append("canvas")   
+	d3.select("body").append("canvas")   
 		.attr("id", "imagerenderer")
         .attr("width", $(this.selector).width())
         .attr("height", $(this.selector).height())
         .attr("style", "display: none");
+
+    d3.select("body").append("div").attr("id", "pngdataurl");
 
 	d3.select(this.selector).append("button")   
         .attr("type", "button")
@@ -242,23 +244,24 @@ scatterPlot.prototype.render = function(){
 
 
 	d3.select("#save").on("click", function(){
-		var html = d3.select(".scatter")
+		var svg_html = d3.select(".scatter")
 			.attr("version", 1.1)
 			.attr("xmlns", "http://www.w3.org/2000/svg")
-			.node().parentNode.innerHTML;
+			.node().innerHTML;
 
-		var c = document.getElementById("imagerenderer");
+		var c = document.querySelector("#imagerenderer");
 		var ctx = c.getContext('2d');
-		ctx.drawSvg(html, 0, 0, $(this.selector).width(), height);
+		ctx.drawSvg(svg_html, 0, 0, $(this.selector).width(), height);
 
-		var a = document.createElement("a");
-		a.download = "sample.png";
+		//var a = document.createElement("a");
+		var a = d3.select("#pngdataurl").append("a")[0][0];
+		a.download = "VirES_Analytics.png";
 		a.href = c.toDataURL("image/png");
 
-		var pngimg = '<img src="'+a.href+'">'; 
-		d3.select("#pngdataurl").html(pngimg);
 
+		
 		a.click();
+		d3.select("#pngdataurl").selectAll("*").remove();
 
 	});
 
@@ -903,7 +906,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	    .attr("style", "margin-top:-20px; display:inline")
 	  	.append("g")
 	  	.attr("display", "block")
-	    .attr("transform", "translate(" + analytics.margin.left + "," + analytics.margin.top + ")");
+	    .attr("transform", "translate(" + analytics.margin.left + "," + (analytics.margin.top)*1.2 + ")");
 
 
 
