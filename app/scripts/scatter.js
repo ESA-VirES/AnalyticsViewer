@@ -19,7 +19,7 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.col_vec = [] ;
 	this.grid_active = false;
 	this.sel_x = "Latitude";
-	this.sel_y = ["F"];
+	//this.sel_y = ["F"];
 	this.identifiers = [];
 	this.active_brushes = [];
 	this.brush_extents = {};
@@ -30,6 +30,8 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.x = null;
 	this.x_hist = null;
 	this.axis = null;
+	this.height = null;
+	this.width = null;
 
 
 	this.tooltip = d3.select("body").append("div")   
@@ -72,6 +74,7 @@ scatterPlot.prototype.parseData = function parseData(values){
     all_dims = d3.keys(self.data[0]);
     var residuals = false;
     var res_key = "";
+    var F_param_exists = false;
 
     d3.keys(self.data[0]).filter(function(key) {
     	if (key.indexOf("_res_") > -1)
@@ -79,7 +82,19 @@ scatterPlot.prototype.parseData = function parseData(values){
 
     	if (key.indexOf("F_res_") > -1)
     		res_key = key;
+
+    	if (key.indexOf("F") > -1)
+    		F_param_exists = true;
     });
+
+    // TODO: We need a better way to find where data is available, ordinarily we create the data
+	// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
+	// interest for visualization, but this is by far not the best way to do it
+    if (!F_param_exists){
+    	this.sel_y = [d3.keys(self.data[0])[5], d3.keys(self.data[0])[6]];
+    }else{
+    	this.sel_y = ["F"];
+    }
 
     // Filter hidden dimensions
     d3.keys(self.data[0]).filter(function(key) {
@@ -223,6 +238,9 @@ scatterPlot.prototype.render = function(){
 	var width = $(this.selector).width() - analytics.margin.left - analytics.margin.right,
 	height = $(this.selector).height() - analytics.margin.top - analytics.margin.bottom;
 	height = parseInt(height/100 * 60)
+
+	this.height = height;
+	this.width = width;
 
 	$(this.selector).empty()
 
@@ -419,7 +437,8 @@ scatterPlot.prototype.render = function(){
 		format_y = d3.time.format(self.format_date);
 	}else{
 		yScale = d3.scale.linear().range([height, 0]);
-		format_y = d3.format('s');
+		//format_y = d3.format('s');
+		format_y = d3.format('g');
 	}
 
 	if(this.col_vec.indexOf(this.sel_x) != -1){
@@ -469,7 +488,8 @@ scatterPlot.prototype.render = function(){
 			tmp_domain[0] = yScale.domain()[0];
 		}
 		// If the parameter maximum is lower then a previously set maximum overwrite it
-		if(tmp_domain[1] < yScale.domain()[1]){
+		// and the currently set maximum is not the default 1 overwrite it
+		if(tmp_domain[1] < yScale.domain()[1] && yScale.domain()[1] != 1){
 			tmp_domain[1] = yScale.domain()[1];
 		}
 
@@ -519,8 +539,8 @@ scatterPlot.prototype.render = function(){
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#D3D3D3");
 
-			xAxis.tickSize(-height);
-			yAxis.tickSize(-width);
+			xAxis.tickSize(-self.height);
+			yAxis.tickSize(-self.width);
 			
 
 		}else{
@@ -574,15 +594,16 @@ scatterPlot.prototype.render = function(){
 		var newkey = "";
 		var parts = this.sel_y[i].split("_");
 		if (parts.length>1){
-			newkey = "<tspan>"+parts[0]+"</tspan>";
+			/*newkey = "<tspan>"+parts[0]+"</tspan>";
 			for (var j=1; j<parts.length; j++){
 				var modifier = "";
 				if(j==1)
 					modifier = ' dy="5"';
 				newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[j]+'</tspan>';
-			}
+			}*/
+			newkey = parts.join(" ");
 		}else{
-			newkey = this.sel_x;
+			newkey = this.sel_y[i];
 		}
 		combinednewkey.push(newkey);
 	};
@@ -650,7 +671,7 @@ scatterPlot.prototype.render = function(){
     svg.select('.y.axis')
       .call(yAxis);
 
-
+    
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
 
@@ -741,6 +762,12 @@ scatterPlot.prototype.render = function(){
 
 		};
 
+	svg.selectAll('text').style("font", "400 13px Arial");
+    svg.selectAll('text').style("fill", "black");
+    svg.selectAll('text').style("stroke", "none");
+
+
+
 
 	// Resize method, recalculates position of all elements in svg
 	function resize() {
@@ -748,6 +775,9 @@ scatterPlot.prototype.render = function(){
 	 		height = $(self.selector).height() - analytics.margin.top - analytics.margin.bottom;
 
 	 	height = parseInt(height/100 * 60);
+
+	 	self.height = height;
+		self.width = width;
 
 	 	svg_container.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
 
