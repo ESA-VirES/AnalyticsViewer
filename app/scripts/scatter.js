@@ -74,58 +74,16 @@ scatterPlot.prototype.parseData = function parseData(values){
     all_dims = d3.keys(self.data[0]);
     var residuals = false;
     var res_key = "";
-    
-    
-    var controlled_sel_y = [];
 
-    
 
+    // Check for residuals
     d3.keys(self.data[0]).filter(function(key) {
     	if (key.indexOf("_res_") > -1)
     		residuals = true;
 
     	if (key.indexOf("F_res_") > -1)
     		res_key = key;
-
-
-    	// If there is already an y axis selection make sure the parameters are available in the data
-    	if (self.sel_y != null){
-	    	for (var i=0; i < self.sel_y.length; i++) {
-	    		// Vector components are separated into multiple parameters so there we need a special check for this.
-	    		if (key.indexOf("NEC")>-1){
-	    			if (key.replace("NEC", "N") == self.sel_y[i] ||
-	    				key.replace("NEC", "E") == self.sel_y[i] ||
-	    				key.replace("NEC", "C") == self.sel_y[i])
-	    				controlled_sel_y.push(self.sel_y[i]);
-
-	    		}else{
-		    		if (key == self.sel_y[i])
-	    				controlled_sel_y.push(self.sel_y[i]);
-	    		}
-
-	    	};
-	    }
     });
-
-    if (this.sel_y == null || controlled_sel_y.length == 0){
-
-    	// TODO: We need a better way to find where data is available, ordinarily we create the data
-		// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
-		// interest for visualization, but this is by far not the best way to do it.
-		// We take for now the 6th attribute as in Swarm data there is an additional SyncStatus attribute
-
-		// If there is no selection or no valid selection we check for residuals if not we use the 6th value
-
-		if (residuals){
-			controlled_sel_y = [res_key];
-		}else{
-			if(d3.keys(self.data[0])[6])
-				controlled_sel_y = [d3.keys(self.data[0])[6]];
-		}
-		
-    }
-
-    this.sel_y = controlled_sel_y;
 
 
     // Filter hidden dimensions
@@ -192,6 +150,59 @@ scatterPlot.prototype.parseData = function parseData(values){
     		}
 	    }
 	});
+    
+    
+    var controlled_sel_y = [];
+
+    
+
+    d3.keys(self.data[0]).filter(function(key) {
+
+    	// If there is already an y axis selection make sure the parameters are available in the data
+    	if (self.sel_y != null){
+	    	for (var i=0; i < self.sel_y.length; i++) {
+	    		// Vector components are separated into multiple parameters so there we need a special check for this.
+	    		if (key.indexOf("NEC")>-1){
+	    			if (key.replace("NEC", "N") == self.sel_y[i] ||
+	    				key.replace("NEC", "E") == self.sel_y[i] ||
+	    				key.replace("NEC", "C") == self.sel_y[i])
+	    				controlled_sel_y.push(self.sel_y[i]);
+
+	    		}else{
+		    		if (key == self.sel_y[i])
+	    				controlled_sel_y.push(self.sel_y[i]);
+	    		}
+
+	    	};
+	    }
+    });
+
+    if (this.sel_y == null || controlled_sel_y.length == 0){
+
+    	// TODO: We need a better way to find where data is available, ordinarily we create the data
+		// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
+		// interest for visualization, but this is by far not the best way to do it.
+		
+		// First we check if residuals are available else we take the 6th element
+		if (residuals)
+    		controlled_sel_y = [res_key];
+		else if(d3.keys(self.data[0])[5])
+			controlled_sel_y = [d3.keys(self.data[0])[5]];
+
+		
+    }
+
+    // TODO: Check to see if old selection was F and new data with residuals was loaded.
+    // If yes we switch to residual visualization.
+    // This is not a good way of doing this! Which parameter should be selected should be 
+    // specified during instantiation.
+
+    
+
+    this.sel_y = controlled_sel_y;
+
+
+    
 
 
 
