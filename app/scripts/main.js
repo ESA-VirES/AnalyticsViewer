@@ -345,7 +345,7 @@ function onscatterPlot(){
 
 	var args = {
 		selector: "#canvas",
-		url: "data/dens_data.csv"
+		url: "data/swarmdata.csv"
 		//url: "http://localhost:8000/vires00/ows?service=WPS&version=1.0.0&request=Execute&identifier=retrieve_data&DataInputs=collection_ids=SW_OPER_MAGB_LR_1B_20141001T000000_20141001T235959_0301_MDR_MAG_LR&rawdataoutput=output"
 		//data: plotdata,
 		//colors: colors

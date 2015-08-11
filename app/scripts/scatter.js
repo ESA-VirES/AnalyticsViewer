@@ -19,7 +19,7 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.col_vec = [] ;
 	this.grid_active = false;
 	this.sel_x = "Latitude";
-	//this.sel_y = ["F"];
+	this.sel_y = null;
 	this.identifiers = [];
 	this.active_brushes = [];
 	this.brush_extents = {};
@@ -32,11 +32,11 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.axis = null;
 	this.height = null;
 	this.width = null;
+	this.selectedpoint = null;
 
 
 	this.tooltip = d3.select("body").append("div")   
-        .attr("class", "point-tooltip")
-		.style("opacity", 0);
+        .attr("class", "point-tooltip");
 	
 
 }
@@ -74,7 +74,11 @@ scatterPlot.prototype.parseData = function parseData(values){
     all_dims = d3.keys(self.data[0]);
     var residuals = false;
     var res_key = "";
-    var F_param_exists = false;
+    
+    
+    var controlled_sel_y = [];
+
+    
 
     d3.keys(self.data[0]).filter(function(key) {
     	if (key.indexOf("_res_") > -1)
@@ -83,18 +87,38 @@ scatterPlot.prototype.parseData = function parseData(values){
     	if (key.indexOf("F_res_") > -1)
     		res_key = key;
 
-    	if (key.indexOf("F") > -1)
-    		F_param_exists = true;
+
+    	// If there is already an y axis selection make sure the parameters are available in the data
+    	if (self.sel_y != null){
+	    	for (var i=0; i <= self.sel_y.length; i++) {
+	    		
+	    		if (key == self.sel_y[i])
+    				controlled_sel_y.push(self.sel_y[i]);
+
+	    	};
+	    }
     });
 
-    // TODO: We need a better way to find where data is available, ordinarily we create the data
-	// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
-	// interest for visualization, but this is by far not the best way to do it
-    if (!F_param_exists){
-    	this.sel_y = [d3.keys(self.data[0])[5], d3.keys(self.data[0])[6]];
-    }else{
-    	this.sel_y = ["F"];
+    if (this.sel_y == null || controlled_sel_y.length == 0 || res_key){
+
+    	// TODO: We need a better way to find where data is available, ordinarily we create the data
+		// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
+		// interest for visualization, but this is by far not the best way to do it.
+		// We take for now the 6th attribute as in Swarm data there is an additional SyncStatus attribute
+
+		// If there is no selection or no valid selection we check for residuals if not we use the 6th value
+
+		if (residuals){
+			controlled_sel_y = [res_key];
+		}else{
+			if(d3.keys(self.data[0])[6])
+				controlled_sel_y = [d3.keys(self.data[0])[6]];
+		}
+		
     }
+
+    this.sel_y = controlled_sel_y;
+
 
     // Filter hidden dimensions
     d3.keys(self.data[0]).filter(function(key) {
@@ -112,7 +136,7 @@ scatterPlot.prototype.parseData = function parseData(values){
     	}else{
 	    	// Check if column is a date
 	    	if(exp_date.test(self.data[1][key])){
-	    		self.data.forEach (function(p) {p[key] = new Date(p[key]);}) ; 
+	    		self.data.forEach (function(p) {p[key] = new Date(p[key].replace(/-/g,'/'));}) ; 
 	    		self.col_date.push(key);
 	    	// Column is vector data
 	    	}else if(self.data[1][key].charAt(0)=="{"){
@@ -185,24 +209,8 @@ scatterPlot.prototype.parseData = function parseData(values){
 		self.headerNames.splice(index, 1);
 	}
 
-	// Check if selections are still available in newly loaded data
-	var new_sel_y = [];
+
 	var new_sel_x = null;
-
-	self.sel_y.forEach(function(par){
-		if(self.headerNames.indexOf(par) > -1){
-			new_sel_y.push(par);
-		}
-	});
-
-	if(new_sel_y.length>0){
-		self.sel_y = new_sel_y;
-	}else{
-		if(residuals)
-			self.sel_y = [res_key];
-		else
-			self.sel_y = ["F"];
-	}
 
 	if(self.headerNames.indexOf(self.sel_x) > -1){
 		new_sel_x = self.sel_x;
@@ -269,7 +277,8 @@ scatterPlot.prototype.render = function(){
 
 		var c = document.querySelector("#imagerenderer");
 		var ctx = c.getContext('2d');
-		ctx.drawSvg(svg_html, 0, 0, $(this.selector).width(), height);
+		
+		ctx.drawSvg(svg_html, 0, 0, self.width, self.height);
 
 		//var a = document.createElement("a");
 		var a = d3.select("#pngdataurl").append("a")[0][0];
@@ -424,7 +433,7 @@ scatterPlot.prototype.render = function(){
 		format_x = d3.time.format(self.format_date);
 	}else{
 		xScale = d3.scale.linear().range([0, width]);
-		format_x = d3.format('s');
+		format_x = d3.format('.3g');
 	}
 
 	var xAxis = d3.svg.axis()
@@ -438,7 +447,7 @@ scatterPlot.prototype.render = function(){
 	}else{
 		yScale = d3.scale.linear().range([height, 0]);
 		//format_y = d3.format('s');
-		format_y = d3.format('g');
+		format_y = d3.format('.3g');
 	}
 
 	if(this.col_vec.indexOf(this.sel_x) != -1){
@@ -701,8 +710,20 @@ scatterPlot.prototype.render = function(){
 			.style("stroke", function(d) { return self.colors(d.id); })
 
 			.on("mouseover", function(d) {
+				$(this).attr("r",7);
+
+	        })  
+
+	        .on("click", function(d) {
+
+	        	if (self.selectedpoint != null){
+	        		self.selectedpoint.attr("r",3.5);
+	        		self.selectedpoint = null;
+	        	}
 
 				self.mouseover(d);
+
+				self.selectedpoint = $(this);
 
 				var values = "";
 				for(var propName in d) {
@@ -712,19 +733,51 @@ scatterPlot.prototype.render = function(){
 
 	            self.tooltip.transition()
 	                .duration(100)
-	                .style("opacity", .9);
+	                .style("display", "block");
 	            self.tooltip.html(values)
-	                .style("left", (d3.event.pageX) + "px")
-	                .style("top", (d3.event.pageY - 28) + "px");
-	        })  
+	                .style("left", (d3.event.pageX + 10) + "px")
+	                .style("top", (d3.event.pageY + 3) + "px");
+
+	            // Add close button
+	            var closeArea = self.tooltip.append('text')
+					.text('X')
+					.attr("style", "position:absolute; right:13px; top:4px; cursor:pointer;")
+					.attr("font-family", "sans-serif")
+					.attr("font-size", "20px");
+
+				closeArea.on("click", function(){
+					self.tooltip.transition()        
+	                	.duration(100)
+	                	.style("display", "none");
+	                	self.selectedpoint.attr("r",3.5);
+	        			self.selectedpoint = null;
+				});
+	            
+	            // Close tooltip if interaction is done anywhere else.
+	            $(document).on("mousedown", function(e){
+	            	if (e.target.nodeName!="circle" && e.target.className!="point-tooltip"){
+	            		if(self.selectedpoint){
+	            			self.tooltip.transition()        
+			                	.duration(100)      
+			                	.style("display", "none");
+		                	self.selectedpoint.attr("r",3.5);
+		        			self.selectedpoint = null;
+	            		}
+	            		
+	            	}
+	            });
+
+				
+	        })
 
 	        .on("mouseout", function(d){
-	            self.tooltip.transition()        
-	                .duration(100)      
-	                .style("opacity", 0);
-
-	            self.mouseout();
+        		if(self.selectedpoint == null) 
+        			$(this).attr("r",3.5);
+        		else if (self.selectedpoint[0] !== $(this)[0])
+        			$(this).attr("r",3.5);
 	        });
+
+
     }
 
 
@@ -778,6 +831,7 @@ scatterPlot.prototype.render = function(){
 
 	 	self.height = height;
 		self.width = width;
+		
 
 	 	svg_container.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
 
@@ -926,7 +980,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 	    foreground;
 
 	// User general formatting for ticks on Axis
-	this.axis.tickFormat(d3.format("g"));
+	this.axis.tickFormat(d3.format(".3g"));
 
 
 	var svg = d3.select(this.selector).append("svg")
