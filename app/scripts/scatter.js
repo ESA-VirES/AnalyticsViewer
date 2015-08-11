@@ -90,16 +90,24 @@ scatterPlot.prototype.parseData = function parseData(values){
 
     	// If there is already an y axis selection make sure the parameters are available in the data
     	if (self.sel_y != null){
-	    	for (var i=0; i <= self.sel_y.length; i++) {
-	    		
-	    		if (key == self.sel_y[i])
-    				controlled_sel_y.push(self.sel_y[i]);
+	    	for (var i=0; i < self.sel_y.length; i++) {
+	    		// Vector components are separated into multiple parameters so there we need a special check for this.
+	    		if (key.indexOf("NEC")>-1){
+	    			if (key.replace("NEC", "N") == self.sel_y[i] ||
+	    				key.replace("NEC", "E") == self.sel_y[i] ||
+	    				key.replace("NEC", "C") == self.sel_y[i])
+	    				controlled_sel_y.push(self.sel_y[i]);
+
+	    		}else{
+		    		if (key == self.sel_y[i])
+	    				controlled_sel_y.push(self.sel_y[i]);
+	    		}
 
 	    	};
 	    }
     });
 
-    if (this.sel_y == null || controlled_sel_y.length == 0 || res_key){
+    if (this.sel_y == null || controlled_sel_y.length == 0){
 
     	// TODO: We need a better way to find where data is available, ordinarily we create the data
 		// and the first 4 paramaters are id, lat, lon, radius so for now the 5th parameter could be of 
