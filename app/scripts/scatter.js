@@ -448,7 +448,7 @@ scatterPlot.prototype.render = function(){
 
 	if(this.showDropDownSelection){
 
-		var x_select = svg_container
+		var x_select = d3.select(this.scatterEl)
 			.insert("div")
 				.attr("class", "xselectdropdown")
 				.attr("style", "position: absolute; z-index: 150;"+
