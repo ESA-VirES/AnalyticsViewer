@@ -335,6 +335,8 @@ var plotdata = "id,val1,val2,val3,val4,val5\n"+
 "id4,'2010-07-22T05:38:40Z',0.157337957053,0.0828667750986,0.129449528982,0.969509351777\n";
 */
 
+var parsedData = [{"id":"ALARO_Temperature_surface","val":281.040283203125,"height":new Date("2013-05-15T05:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.82177734375,"height":new Date("2013-05-15T08:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.553466796875,"height":new Date("2013-05-15T07:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.425537109375,"height":new Date("2013-05-15T06:00:00.000Z")}];
+
 sp = null;
 
 function onscatterPlot(){
@@ -344,11 +346,20 @@ function onscatterPlot(){
     	.range(["#1f77b4", "#ff7f0e"]);
 
 	var args = {
-		selector: "#canvas",
-		url: "data/swarmdata.csv"
+		scatterEl: "#scatter",
+		histoEl: "#histograms",
+		//url: "data/out2.csv",
+		dateformat: "%Y-%m-%d",
+		/*selection_x: "availabilityTime",
+		selection_y: ["baselinePerpendicularOffset"],*/
+		selection_x: "height",
+		selection_y: ["val"],
+		toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"]
 		//url: "http://localhost:8000/vires00/ows?service=WPS&version=1.0.0&request=Execute&identifier=retrieve_data&DataInputs=collection_ids=SW_OPER_MAGB_LR_1B_20141001T000000_20141001T235959_0301_MDR_MAG_LR&rawdataoutput=output"
 		//data: plotdata,
 		//colors: colors
+		,parsedData: parsedData,
+		//showDropDownSelection: false
 	};
 
 	this.sp = new scatterPlot(args, function(){

@@ -1,25 +1,40 @@
 
 
-
+function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
 
 function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 
-	//this.margin = {top: 20, right: 20, bottom: 90, left: 70};
+
+	this.scatterEl = args.scatterEl;
+
+	this.margin = defaultFor(
+		args.margin,
+		{top: 50, right: 40, bottom: 35, left: 70}
+	);
+
+	this.histoEl = defaultFor(args.histoEl, false);
+	this.histoMargin = defaultFor(
+		args.histoMargin,
+		{top: 30, right: 70, bottom: 30, left: 100}
+	);
+
 	this.mouseover = mouseover;
 	this.mouseout = mouseout;
 	this.filterset = filterset;
 	this.callback = callback;
-	this.margin = {top: 10, right: 120, bottom: 0, left: 0};
 	this.headerNames = null;
-	this.selector = args.selector;
 	this.colors = args.colors;
+	this.toIgnore = defaultFor(args.toIgnore, ['id','active']);
+	this.toIgnoreHistogram = defaultFor(args.toIgnoreHistogram, ['id']);
+	this.format_date = defaultFor(args.dateformat, "%H:%M:%S");
 	this.parameter_colors = null;
+	this.col_ordinal = [] ;
 	this.col_date = [] ;
 	this.col_vec = [] ;
-	this.grid_active = false;
-	this.sel_x = "Latitude";
-	this.sel_y = null;
+	this.grid_active = defaultFor(args.grid, true);
+	this.sel_x = defaultFor(args.selection_x, "Latitude");
+	this.sel_y = defaultFor(args.selection_y, null);
 	this.identifiers = [];
 	this.active_brushes = [];
 	this.brush_extents = {};
@@ -33,6 +48,9 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 	this.height = null;
 	this.width = null;
 	this.selectedpoint = null;
+	this.residuals = false;
+
+	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
 
 	this.tooltip = d3.select("body").append("div")   
@@ -54,15 +72,36 @@ scatterPlot.prototype.loadData = function loadData(args){
 	}else if(args.data){
 		this.parseData(d3.csv.parse(args.data));
 		this.render();
-		self.parallelsPlot();
-	    self.callback();
+		this.parallelsPlot();
+	    this.callback();
+	}else if(args.parsedData){
+		this.data = args.parsedData;
+		this.analyseData();
+		this.initData();
+		this.render();
+		this.parallelsPlot();
+	    this.callback();
 	}
 }
 
+scatterPlot.prototype.analyseData = function analyseData(){
+
+	for(var key in this.data[0]){
+		// Check if column is a date
+    	if(this.data[0][key] instanceof Date){
+    		this.col_date.push(key);
+	    }else{
+	    	var val = +(this.data[0][key]);
+	    	if (isNaN(val)){
+	    		this.col_ordinal.push(key);
+	    	}
+	    }
+	}
+
+}
 
 scatterPlot.prototype.parseData = function parseData(values){
 
-	this.format_date = "%H:%M:%S" ;
 	var exp_date = /^(\d){4}-(\d){2}-(\d){2}/
 	var value;
 	var self = this;
@@ -72,14 +111,14 @@ scatterPlot.prototype.parseData = function parseData(values){
 	// Extract the list of dimensions
     // For each dimension, guess if numeric value or not and create vert scales
     all_dims = d3.keys(self.data[0]);
-    var residuals = false;
+    this.residuals = false;
     var res_key = "";
 
 
     // Check for residuals
     d3.keys(self.data[0]).filter(function(key) {
     	if (key.indexOf("_res_") > -1)
-    		residuals = true;
+    		this.residuals = true;
 
     	if (key.indexOf("F_res_") > -1)
     		res_key = key;
@@ -89,20 +128,15 @@ scatterPlot.prototype.parseData = function parseData(values){
     // Filter hidden dimensions
     d3.keys(self.data[0]).filter(function(key) {
     	// TODO temporary if to remove flags, shall be removed
-    	if (key.indexOf("Flag") > -1 ||
-    		key.indexOf("ASM") > -1 ||
-    		key.indexOf("q_NEC") > -1 ||
-    		key.indexOf("dF_") > -1 ||
-    		key.indexOf("other") > -1 ||
-    		key.indexOf("error") > -1 ||
-    		key.indexOf("dB_") > -1 ||
-    		key.indexOf("VFM") > -1 ||
-    		key.indexOf("Status") > -1 ){
+    	if ($.inArray(key, self.toIgnore) > -1 ){
     		self.data.forEach (function(p) {delete p[key];}) ; 
     	}else{
 	    	// Check if column is a date
 	    	if(exp_date.test(self.data[1][key])){
-	    		self.data.forEach (function(p) {p[key] = new Date(p[key].replace(/-/g,'/'));}) ; 
+	    		self.data.forEach (function(p) {
+	    			//p[key] = new Date(p[key].replace(/-/g,'/'));
+	    			p[key] = new Date(p[key]);
+	    		}) ; 
 	    		self.col_date.push(key);
 	    	// Column is vector data
 	    	}else if(self.data[1][key].charAt(0)=="{"){
@@ -119,7 +153,7 @@ scatterPlot.prototype.parseData = function parseData(values){
 		    					case 2: new_key="B_C"; break;
 		    				}
 		    				//new_key = key + new_key;
-		    				if(!residuals)
+		    				if(!this.residuals)
 		    					p[new_key] = parseFloat(vector[i]);
 
 		    			}else if(key.indexOf( "B_NEC_res_" ) > -1){
@@ -141,20 +175,31 @@ scatterPlot.prototype.parseData = function parseData(values){
 	    		}) ;
 
 	    	// Check if column is a float value
-	    	}else if (value = parseFloat(self.data[1][key])){
+	    	/*}else if (value = parseFloat(self.data[1][key])){
 	    		self.data.forEach (function(p) {p[key] = parseFloat(p[key]);}) ;
-	    	}
-
-	    	if(residuals && key == "F"){
-    			self.data.forEach (function(p) {delete p[key];}) ; 
-    		}
-	    }
+	    	}*/
+		    }else{
+		    	var val = +(self.data[1][key]);
+		    	if (!isNaN(val)){
+		    		self.data.forEach (function(p) {p[key] = +(p[key]);}) ;
+		    	}else{
+		    		self.col_ordinal.push(key);
+		    	}
+		    }
+		    if(this.residuals && key == "F"){
+				self.data.forEach (function(p) {delete p[key];}) ; 
+			}
+		}
 	});
-    
+
+    self.initData();
+}
+
+scatterPlot.prototype.initData = function initData(){    
     
     var controlled_sel_y = [];
 
-    
+    var self = this;
 
     d3.keys(self.data[0]).filter(function(key) {
 
@@ -177,6 +222,7 @@ scatterPlot.prototype.parseData = function parseData(values){
 	    }
     });
 
+
     if (this.sel_y == null || controlled_sel_y.length == 0){
 
     	// TODO: We need a better way to find where data is available, ordinarily we create the data
@@ -184,7 +230,7 @@ scatterPlot.prototype.parseData = function parseData(values){
 		// interest for visualization, but this is by far not the best way to do it.
 		
 		// First we check if residuals are available else we take the 6th element
-		if (residuals)
+		if (this.residuals)
     		controlled_sel_y = [res_key];
 		else if(d3.keys(self.data[0])[5])
 			controlled_sel_y = [d3.keys(self.data[0])[5]];
@@ -222,11 +268,14 @@ scatterPlot.prototype.parseData = function parseData(values){
 	self.colors = d3.scale.ordinal().domain(self.identifiers).range(d3.scale.category10().range());
 		
 
-	// Remove id element
-	var index = self.headerNames.indexOf("id");
-	if (index > -1) {
-		self.headerNames.splice(index, 1);
-	}
+	// Remove unwanted elements
+	for (var i = self.toIgnore.length - 1; i >= 0; i--) {
+		var index = self.headerNames.indexOf(self.toIgnore[i]);
+		if (index > -1) {
+			self.headerNames.splice(index, 1);
+		}
+	};
+	
 
 
 	var new_sel_x = null;
@@ -262,25 +311,24 @@ scatterPlot.prototype.parseData = function parseData(values){
 scatterPlot.prototype.render = function(){
 
 	var self = this;
-	var width = $(this.selector).width() - analytics.margin.left - analytics.margin.right,
-	height = $(this.selector).height() - analytics.margin.top - analytics.margin.bottom;
-	height = parseInt(height/100 * 60)
+	var width = $(this.scatterEl).width() - this.margin.left - this.margin.right,
+	height = $(this.scatterEl).height() - this.margin.top - this.margin.bottom;
 
 	this.height = height;
 	this.width = width;
 
-	$(this.selector).empty()
+	$(this.scatterEl).empty()
 
 
 	d3.select("body").append("canvas")   
 		.attr("id", "imagerenderer")
-        .attr("width", $(this.selector).width())
-        .attr("height", $(this.selector).height())
+        .attr("width", $(this.scatterEl).width())
+        .attr("height", $(this.scatterEl).height())
         .attr("style", "display: none");
 
     d3.select("body").append("div").attr("id", "pngdataurl");
 
-	d3.select(this.selector).append("button")   
+	d3.select(this.scatterEl).append("button")   
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "save")
@@ -301,7 +349,7 @@ scatterPlot.prototype.render = function(){
 
 		//var a = document.createElement("a");
 		var a = d3.select("#pngdataurl").append("a")[0][0];
-		a.download = "VirES_Analytics.png";
+		a.download = "Analytics.png";
 		a.href = c.toDataURL("image/png");
 
 
@@ -313,7 +361,7 @@ scatterPlot.prototype.render = function(){
 
 	// Add button for grid toggle
 	
-	this.gridselector = d3.select(this.selector).append("button")   
+	this.gridselector = d3.select(this.scatterEl).append("button")   
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "grid")
@@ -321,7 +369,7 @@ scatterPlot.prototype.render = function(){
         .text("Toggle Grid");
 
 
-    d3.select(this.selector).append("button")   
+    d3.select(this.scatterEl).append("button")   
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "download_button")
@@ -329,118 +377,124 @@ scatterPlot.prototype.render = function(){
         .text("Download");
 
 
+    if(this.showDropDownSelection){
 
-    var y_select = d3.select(this.selector)
-			.insert("div")
-			.attr("style", "position: absolute;"+
-				"margin-left:"+(analytics.margin.left + 10)+
-				"px; margin-top:"+(analytics.margin.top-40)+"px;")
-			.append("select")
-				.attr("multiple", "multiple");
 
-		
+	    var y_select = d3.select(this.scatterEl)
+				.insert("div")
+				.attr("style", "position: absolute;"+
+					"margin-left:"+(this.margin.left + 10)+
+					"px; margin-top:"+(this.margin.top-40)+"px;")
+				.append("select")
+					.attr("multiple", "multiple");
 
-	y_select.selectAll("option")
-		.data(this.headerNames)
-		.enter()
-		.append("option")
-		.text(function (d) { 
-			if(self.sel_y.indexOf(d) != -1)
-				d3.select(this).attr("selected","selected");
+			
 
-			// Renaming of keys introducing subscript
-			var newkey = "";
-			var parts = d.split("_");
-			if (parts.length>1){
-				newkey = parts[0];
-				for (var i=1; i<parts.length; i++){
-					newkey+=(" "+parts[i]).sub();
+		y_select.selectAll("option")
+			.data(this.headerNames)
+			.enter()
+			.append("option")
+			.text(function (d) { 
+				if(self.sel_y.indexOf(d) != -1)
+					d3.select(this).attr("selected","selected");
+
+				// Renaming of keys introducing subscript
+				var newkey = "";
+				var parts = d.split("_");
+				if (parts.length>1){
+					newkey = parts[0];
+					for (var i=1; i<parts.length; i++){
+						newkey+=(" "+parts[i]).sub();
+					}
+				}else{
+					newkey = d;
 				}
-			}else{
-				newkey = d;
-			}
 
-			d3.select(this).attr("value", d)
-			return newkey; 
+				d3.select(this).attr("value", d)
+				return newkey; 
+			});
+
+		$(y_select).SumoSelect({ okCancelInMulti: true });
+
+
+		$(".SumoSelect").change(function(evt){
+
+			var sel_y = [];
+			_.each($(this).find(".optWrapper .selected"), function(elem){
+				sel_y.push(elem.dataset.val);
+			});
+
+			self.sel_y = sel_y;
+			self.render();
+			self.parallelsPlot();
+		
 		});
 
-	$(y_select).SumoSelect({ okCancelInMulti: true });
-
-
-	$(".SumoSelect").change(function(evt){
-
-		var sel_y = [];
-		_.each($(this).find(".optWrapper .selected"), function(elem){
-			sel_y.push(elem.dataset.val);
-		});
-
-		self.sel_y = sel_y;
-		self.render();
-		self.parallelsPlot();
-	
-	});
+	}
 
 
 	// Definition and creation of scatter plot svg element with available size
 
-	var svg_container = d3.select(this.selector).append("div")
+	var svg_container = d3.select(this.scatterEl).append("div")
 		.attr("class", "svg_container")
-		.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
+		.attr("style", 'width: 100%;height: 100%;')
+		
 
 	var svg = svg_container.append("svg")
 		.attr("class", "scatter")
-	    .attr("width", width)
-	    .attr("height", height)
 	  	.append("g")
-	    .attr("transform", "translate(" + analytics.margin.left + "," + analytics.margin.top + ")");
+	    .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
 
-	var x_select = svg_container
-		.insert("div")
-			.attr("class", "xselectdropdown")
-			.attr("style", "position: relative; z-index: 150;"+
-				"float:right;"+
-				"bottom:25px;")
-			.append("select")
-				.attr("style", "width: 100px;");
+	if(this.showDropDownSelection){
 
-		
+		var x_select = svg_container
+			.insert("div")
+				.attr("class", "xselectdropdown")
+				.attr("style", "position: absolute; z-index: 150;"+
+					"right:"+(this.margin.right+120)+"px;"+"width:120px;"+
+					"bottom:5px;")
+				.append("select")
+					.attr("style", "width: 250px;");
 
-	x_select.selectAll("option")
-		.data(this.headerNames)
-		.enter()
-		.append("option")
-		.text(function (d) { 
+			
 
-			if(self.sel_x == d)
-				d3.select(this).attr("selected","selected");
+		x_select.selectAll("option")
+			.data(this.headerNames)
+			.enter()
+			.append("option")
+			.text(function (d) { 
 
-			// Renaming of keys introducing subscript
-			var newkey = "";
-			var parts = d.split("_");
-			if (parts.length>1){
-				newkey = parts[0];
-				for (var i=1; i<parts.length; i++){
-					newkey+=(" "+parts[i]).sub();
+				if(self.sel_x == d)
+					d3.select(this).attr("selected","selected");
+
+				// Renaming of keys introducing subscript
+				var newkey = "";
+				var parts = d.split("_");
+				if (parts.length>1){
+					newkey = parts[0];
+					for (var i=1; i<parts.length; i++){
+						newkey+=(" "+parts[i]).sub();
+					}
+				}else{
+					newkey = d;
 				}
-			}else{
-				newkey = d;
-			}
 
-			d3.select(this).attr("value", d)
-			return newkey; 
+				d3.select(this).attr("value", d)
+				return newkey; 
+			});
+
+		$(x_select).SumoSelect({ okCancelInMulti: false });
+
+
+		$(".xselectdropdown").find(".SumoSelect").change(function(evt){
+
+			self.sel_x = $(this).find(".optWrapper .selected").data().val;
+			self.render();
+			self.parallelsPlot();
+		
 		});
-
-	$(x_select).SumoSelect({ okCancelInMulti: false });
-
-
-	$(".xselectdropdown").find(".SumoSelect").change(function(evt){
-
-		self.sel_x = $(this).find(".optWrapper .selected").data().val;
-		self.render();
-		self.parallelsPlot();
-	
-	});
+	}
 	
 
 	// Definition X scale, domain and format
@@ -449,10 +503,12 @@ scatterPlot.prototype.render = function(){
 
 	if (this.col_date.indexOf(this.sel_x) != -1){
 		xScale = d3.time.scale().range([0, width]);
-		format_x = d3.time.format(self.format_date);
+		//format_x = d3.time.format(self.format_date);
+	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
+		xScale = d3.scale.ordinal().rangePoints([0, width]);
 	}else{
 		xScale = d3.scale.linear().range([0, width]);
-		format_x = d3.format('.3g');
+		//format_x = d3.format('.3g');
 	}
 
 	var xAxis = d3.svg.axis()
@@ -460,14 +516,20 @@ scatterPlot.prototype.render = function(){
 	    .orient("bottom")
 	    .tickFormat(format_x);
 
-	if (this.col_date.indexOf(this.sel_y) != -1){
+	// Use first selected element of y axis as definer for axis domain and scale
+
+	var firstYSelection = this.sel_y[0];
+
+	if (this.col_date.indexOf(firstYSelection) != -1){
 		yScale = d3.time.scale().range([height, 0]);
-		format_y = d3.time.format(self.format_date);
+		//format_y = d3.time.format(self.format_date);
+	}else if(this.col_ordinal.indexOf(firstYSelection) != -1){
+		yScale = d3.scale.ordinal().rangePoints([height-this.margin.bottom, 0]);
 	}else{
-		yScale = d3.scale.linear().range([height, 0]);
-		//format_y = d3.format('s');
-		format_y = d3.format('.3g');
+		yScale = d3.scale.linear().range([height-this.margin.bottom, 0]);
+		//format_y = d3.format('.3g');
 	}
+
 
 	if(this.col_vec.indexOf(this.sel_x) != -1){
 		var length_array = [];
@@ -483,11 +545,31 @@ scatterPlot.prototype.render = function(){
 		xScale.domain(d3.extent(length_array, function(d) { 
 		 	return d;
 		})).nice();
-
-	}else{
-		xScale.domain(d3.extent(this.data, function(d) { 
+	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
+		xScale.domain(this.data.map(function(d) { 
+			return d[self.sel_x]; 
+		}));
+	}else if(this.col_date.indexOf(this.sel_x) != -1){
+		var tmp_domain = d3.extent(this.data, function(d) { 
 		 	return d[self.sel_x];
-		})).nice();
+		});
+
+		// 5% buffer so points are not drawn exactly on axis
+		var domainBuffer = (Math.abs(tmp_domain[1].getTime()-tmp_domain[0].getTime())/100)*5;
+		var niceDomain = [new Date(tmp_domain[0].getTime()-domainBuffer), new Date(tmp_domain[1].getTime()+domainBuffer)];
+
+		xScale.domain(niceDomain);
+	}else{
+		var tmp_domain = d3.extent(this.data, function(d) { 
+		 	return d[self.sel_x];
+		});
+
+		// 5% buffer so points are not drawn exactly on axis
+		var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
+		var niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
+
+		xScale.domain(niceDomain);
+
 	}
 
 
@@ -506,9 +588,22 @@ scatterPlot.prototype.render = function(){
 
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
 
-		var tmp_domain = d3.extent(this.data, function(d) { 
+		var tmp_domain;
+
+		if(this.col_ordinal.indexOf(firstYSelection) != -1){
+			tmp_domain = this.data.map(function(d) { 
+				return d[firstYSelection]; 
+			});
+		}else{
+			tmp_domain = d3.extent(this.data, function(d) { 
+			 	return d[firstYSelection];
+			});
+		}
+
+
+		/*var tmp_domain = d3.extent(this.data, function(d) { 
 			return d[self.sel_y[i]];
-		});
+		});*/
 
 		// If the parameter minimum is bigger then a previously set minimum and the 
 		// currently set minimum is not the default 0 overwrite it
@@ -521,7 +616,11 @@ scatterPlot.prototype.render = function(){
 			tmp_domain[1] = yScale.domain()[1];
 		}
 
-		yScale.domain(tmp_domain).nice();
+		// 5% buffer so points are not drawn exactly on axis
+		var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
+		var niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
+
+		yScale.domain(niceDomain);
 	};
 
 
@@ -544,7 +643,7 @@ scatterPlot.prototype.render = function(){
 		.attr("id", "clip")
 	    .append("rect")
 	        .attr("width", width)
-	        .attr("height", height);
+	        .attr("height", (height-this.margin.bottom));
 
 
 	svg.attr("pointer-events", "all");
@@ -567,7 +666,7 @@ scatterPlot.prototype.render = function(){
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#D3D3D3");
 
-			xAxis.tickSize(-self.height);
+			xAxis.tickSize(-(self.height-self.margin.bottom));
 			yAxis.tickSize(-self.width);
 			
 
@@ -607,7 +706,7 @@ scatterPlot.prototype.render = function(){
 	// Add ticks for X axis
 	svg.append("g")
 		.attr("class", "x axis")
-		.attr("transform", "translate(0," + height + ")")
+		.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
 		.call(xAxis)
 		.append("text")
 			.attr("class", "label")
@@ -678,7 +777,7 @@ scatterPlot.prototype.render = function(){
 	      	.attr("shape-rendering", "crispEdges")
 	      	.attr("stroke", "#D3D3D3");
 
-		xAxis.tickSize(-height);
+		xAxis.tickSize(-(height-self.margin.bottom));
 		yAxis.tickSize(-width);
 		
 
@@ -843,18 +942,13 @@ scatterPlot.prototype.render = function(){
 
 	// Resize method, recalculates position of all elements in svg
 	function resize() {
-	    var width = $(self.selector).width() - analytics.margin.left - analytics.margin.right,
-	 		height = $(self.selector).height() - analytics.margin.top - analytics.margin.bottom;
-
-	 	height = parseInt(height/100 * 60);
+	    var width = $(self.scatterEl).width() - self.margin.left - self.margin.right,
+	 		height = $(self.scatterEl).height() - self.margin.top - self.margin.bottom;
 
 	 	self.height = height;
 		self.width = width;
-		
 
-	 	svg_container.attr("style", "width:" + $(this.selector).width() +"px; height:60%");
-
-	 	clippath.attr("width", width).attr("height", height);
+	 	clippath.attr("width", width).attr("height", (height-self.margin.bottom));
 
 	 	// Update Rect size
 	 	// Add rect to allow zoom and pan interaction over complete graph
@@ -864,7 +958,7 @@ scatterPlot.prototype.render = function(){
 
 	    // Update the range of the scale with new width/height
 	    xScale.range([0, width]);
-	    yScale.range([height, 0]);
+	    yScale.range([(height-self.margin.bottom), 0]);
 
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
 		    // Update legend for available unique identifiers
@@ -891,7 +985,7 @@ scatterPlot.prototype.render = function(){
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#D3D3D3");
 
-			xAxis.tickSize(-height);
+			xAxis.tickSize(-(height-self.margin.bottom));
 			yAxis.tickSize(-width);
 			
 
@@ -907,7 +1001,7 @@ scatterPlot.prototype.render = function(){
 
 		// Update the axis with the new scale
 	    svg.select('.x.axis')
-	      .attr("transform", "translate(0," + height + ")")
+	      .attr("transform", "translate(0," + (height-self.margin.bottom) + ")")
 	      .call(xAxis);
 
 	    svg.select('.y.axis')
@@ -963,323 +1057,397 @@ scatterPlot.prototype.colatitude = function colatitude (productid){
 
 
 scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
-	
-	var el = d3.select(this.selector);
 
-	var uniqueArray = [];
-	var domain = [];
-
-	var self = this;
-
-	// Clone array
-	this.parameters = this.headerNames.slice(0);
-
-	// Remove parameters which are vectors and additionally timestamp
-	_.each(this.col_vec.concat("Timestamp").concat("active").concat("F_wmm2010"), function(n){
-		var index = self.parameters.indexOf(n);
-		if (index > -1) {
-			self.parameters.splice(index, 1);
-		}
-	});
-
-
-	var	width = $(this.selector).width() - this.margin.left - this.margin.right,
-		height = $(this.selector).height() - this.margin.top - this.margin.bottom;
-
-	height = parseInt(height/100 * 40);
-	height-=30;
-
-	this.x_hist = {};
-	this.hist_data = {};
-	this.y = {};
-	this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
-	this.axis = d3.svg.axis().orient("left");
-
-	var line = d3.svg.line(),
-	    foreground;
-
-	// User general formatting for ticks on Axis
-	this.axis.tickFormat(d3.format(".3g"));
-
-
-	var svg = d3.select(this.selector).append("svg")
-		.attr("class", "parallels")
-	    .attr("width", width)
-	    .attr("height", height)
-	    .attr("style", "margin-top:-20px; display:inline")
-	  	.append("g")
-	  	.attr("display", "block")
-	    .attr("transform", "translate(" + analytics.margin.left + "," + (analytics.margin.top)*1.2 + ")");
-
-
-
-    var self = this;
-    self.svg = svg;
-	// Create a scale and brush for each trait.
-	self.parameters.forEach(function(d) {
-
-	    self.y[d] = d3.scale.linear()
-	        .range([height, 0])
-	        .domain(d3.extent(self.data, function(data) { 
-	        	return data[d];
-			})).nice();
-
-	    self.y[d].brush = d3.svg.brush()
-	        .y(self.y[d])
-	        .on("brushend", brushend)
-	        .on("brush", function(param){
-
-	        	var brush_top = self.svg.selectAll('.trait.'+param).selectAll('.resize.n');
-	        	var brush_bottom = self.svg.selectAll('.trait.'+param).selectAll('.resize.s');
-	        	var extent = self.y[param].brush.extent();
-	        	var format = d3.format('.02f');
-
-	        	brush_top.select("text").remove();
-	        	brush_bottom.select("text").remove();
-
-	        	brush_top.append("text")
-	               .text(format(extent[1]))
-	               .style("transform", "translate(15px,0px)");
-	            brush_bottom.append("text")
-	               .text(format(extent[0]))
-	               .style("transform", "translate(15px,0px)");
-
-
-	        });
-
-
-	    var transformed_data = [];
-	    _.each(self.data, function(row){
-	    	if (row["active"])
-    			transformed_data.push(row[d]);
-    	});
-
-	    // Generate a histogram using twenty uniformly-spaced bins.
-		self.hist_data[d] = d3.layout.histogram()
-		    .bins(self.y[d].ticks(60))
-		    (transformed_data);
-		    //(values);
-
-		self.x_hist[d] = d3.scale.linear()
-		    .domain([0, d3.max(self.hist_data[d], function(data) { 
-		    	return data.length;
-		    })])
-		    .range([0, 40]);
-	});
-
-	// If there were active brushes before re-rendering set the brush extents again
-	var filter_to_remove = [];
-	self.active_brushes.forEach (function(p) {
-		if ( self.y.hasOwnProperty(p) ) {
-		    // Re-set brush
-		    self.y[p].brush.extent(self.brush_extents[p]);
-		}else{
-			// Add to remove list
-			filter_to_remove.push(p);
-		}
-	});
-	
-	// Remove unnecessary filters
-	for (var i = filter_to_remove.length - 1; i >= 0; i--) {
-		var index = self.active_brushes.indexOf(filter_to_remove[i]);
-		if (index > -1) {
-			self.active_brushes.splice(index, 1);
-		}
-	};
-
-	if (filter_to_remove.length>0){
-		var filter = {};
-		self.active_brushes.forEach (function(p) {
-			filter[p] = self.brush_extents[p];
-    	});
-		self.filterset(filter);
-	}
+	if(this.histoEl){
 		
+		$(this.histoEl).empty()
 
+		var uniqueArray = [];
+		var domain = [];
 
-	self.parameters.forEach(function(para) {
+		var self = this;
 
-		var bar = svg.selectAll("." + para)
-		    .data(self.hist_data[para])
-		  	.enter().append("g")
-		    .attr("class", "bar "+para)
-		    .attr("transform", function(d) { 
-		    	return "translate(" + self.x(para) + "," + (self.y[para](d.x) - height/self.hist_data[para].length) + ")";
-		    });
+		// Clone array
+		this.parameters = this.headerNames.slice(0);
 
-		bar.append("rect")
-		    .attr("height", 
-		    	height/self.hist_data[para].length - 1
-		    )
-		    .attr("width", function(d) {
-		    	return self.x_hist[para](d.y);
-			})
-			.style("fill", "#1F77B4");
-
-	});
-
-	//var colors = d3.scale.category10().domain(uniqueArray);
-
-	// Add a group element for each trait.
-	var g = svg.selectAll(".trait")
-	    .data(self.parameters)
-	    .enter().append("svg:g")
-	    //.attr("class", "trait")
-	    .attr("class", function(d) { return "trait " + d; })
-	    .attr("transform", function(d) { 
-	    	return "translate(" + self.x(d) + ")"; 
-	    });
-		  
-	// Add an axis and title.
-	g.append("svg:g")
-	    .attr("class", "axis")
-	    .each(function(d) { 
-	    	d3.select(this).call(self.axis.scale(self.y[d]));
-	    })
-	    .append("svg:text")
-	    .attr("text-anchor", "middle")
-	    .attr("y", -12)
-	    .html(function (d) { 
-			// Renaming of keys introducing subscript
-			var newkey = "";
-			var parts = d.split("_");
-			if (parts.length>1){
-				newkey = "<tspan>"+parts[0]+"</tspan>";
-				for (var i=1; i<parts.length; i++){
-					var modifier = "";
-					if(i==1)
-						modifier = ' dy="5"';
-					newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
-				}
-			}else{
-				newkey = d;
+		// Remove parameters which are vectors and additionally timestamp
+		_.each(this.col_vec.concat("Timestamp").concat("active").concat("F_wmm2010"), function(n){
+			var index = self.parameters.indexOf(n);
+			if (index > -1) {
+				self.parameters.splice(index, 1);
 			}
-			return newkey; 
+		});
+
+		
+		// Remove parameters marked to be ignored
+		_.each(self.toIgnoreHistogram, function(n){
+			var index = self.parameters.indexOf(n);
+			if (index > -1) {
+				self.parameters.splice(index, 1);
+			}
 		});
 
 
-	// In order to work with the canvas renderer styles need to be applied directlo
-	// to svg elements instead of using a stile. Here we set stroke width and color 
-	// for all ticks and axis paths
-	svg.selectAll('.axis .domain')
-      	.attr("stroke-width", "2")
-      	.attr("stroke", "#000")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("fill", "none");
+		var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right,
+			height = $(this.histoEl).height() - this.histoMargin.top - this.histoMargin.bottom;
 
-    svg.selectAll('.axis line')
-      	.attr("stroke-width", "2")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("stroke", "#000");
+		this.x_hist = {};
+		this.hist_data = {};
+		this.y = {};
+		this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
+		this.axis = d3.svg.axis().orient("left");
 
-    svg.selectAll('.axis path')
-      	.attr("stroke-width", "2")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("stroke", "#000");
+		var line = d3.svg.line(),
+		    foreground;
+
+		// User general formatting for ticks on Axis
+		this.axis.tickFormat(d3.format(".3g"));
 
 
-	// Add a brush for each axis.
-	g.append("svg:g")
-	    .attr("class", "brush")
-	    .each(function(d) { d3.select(this).call(self.y[d].brush); })
-	    .selectAll("rect")
-	    .attr("x", -8)
-	    .attr("width", 16);
+		var svg = d3.select(this.histoEl).append("svg")
+			.attr("class", "parallels")
+		    .attr("width", width)
+		    .attr("height", height)
+		  	.append("g")
+		  	.attr("display", "block")
+		  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
 
-	// Returns the path for a given data point.
-	function path(d) {
-		return line(self.parameters.map(function(p) {
-		  	return [x(p), self.y[p](d[p])];
-		}));
-	}
 
-	// Handles a brush event, toggling the display of foreground lines.
-	function brushend(parameter) {
+
+	    var self = this;
+	    self.svg = svg;
+		// Create a scale and brush for each trait.
+		self.parameters.forEach(function(d) {
+
+
+
+
+			/*var xScale, format_x;
+
+			if (self.col_date.indexOf(d) != -1){
+				xScale = d3.time.scale().range([height, 0]);
+				format_x = d3.time.format(self.format_date);
+			}else if(self.col_ordinal.indexOf(d) != -1){
+				xScale = d3.scale.ordinal().rangePoints([height, 0]);
+			}else{
+				xScale = d3.scale.linear().range([height, 0]);
+				format_x = d3.format('.3g');
+			}
+
+			var xAxis = d3.svg.axis()
+			    .scale(xScale)
+			    .orient("bottom")
+			    .tickFormat(format_x);
+
+
+			if(self.col_vec.indexOf(d) != -1){
+				var length_array = [];
+				self.data.forEach(function(data) {
+					var vec_length = 0;
+					for (var i = data[d].length - 1; i >= 0; i--) {
+						vec_length += Math.exp(d[d][i]);
+					};
+					vec_length = Math.sqrt(vec_length);
+					length_array.push(vec_length);
+				});
+
+				xScale.domain(d3.extent(length_array, function(data) { 
+				 	return data;
+				})).nice();
+			}else if(self.col_ordinal.indexOf(d) != -1){
+				xScale.domain(self.data.map(function(data) { 
+					return data[d]; 
+				}));
+			}else{
+				xScale.domain(d3.extent(self.data, function(data) { 
+				 	return data[d];
+				})).nice();
+			}
+
+
+			self.y[d] = xAxis;*/
+
+
+			if(self.col_ordinal.indexOf(d) != -1){
+				self.y[d] = d3.scale.ordinal()
+					.rangePoints([height, 0])
+			        .domain(self.data.map(function(data) { 
+						return data[d]; 
+					}));
+
+			}else{
+			    self.y[d] = d3.scale.linear()
+			        .range([height, 0])
+			        .domain(d3.extent(self.data, function(data) { 
+			        	return data[d];
+					})).nice();
+		    }
+
+		    self.y[d].brush = d3.svg.brush()
+		        .y(self.y[d])
+		        .on("brushend", brushend)
+		        .on("brush", function(param){
+
+		        	var brush_top = self.svg.selectAll('.trait.'+param).selectAll('.resize.n');
+		        	var brush_bottom = self.svg.selectAll('.trait.'+param).selectAll('.resize.s');
+		        	var extent = self.y[param].brush.extent();
+		        	var format = d3.format('.02f');
+
+		        	brush_top.select("text").remove();
+		        	brush_bottom.select("text").remove();
+
+		        	brush_top.append("text")
+		               .text(format(extent[1]))
+		               .style("transform", "translate(15px,0px)");
+		            brush_bottom.append("text")
+		               .text(format(extent[0]))
+		               .style("transform", "translate(15px,0px)");
+
+
+		        });
+
+
+		    var transformed_data = [];
+		    _.each(self.data, function(row){
+		    	if (row["active"])
+	    			transformed_data.push(row[d]);
+	    	});
+
+
+		    // Generate a histogram using twenty uniformly-spaced bins.
+		    if(self.col_ordinal.indexOf(d) != -1){
+		    	self.hist_data[d] = d3.layout.histogram()
+		    		//.bins(self.y[d])
+					(transformed_data.map(function(data) { 
+							return data[d]; 
+						})
+					);
+		    }else{
+
+				self.hist_data[d] = d3.layout.histogram()
+				    .bins(self.y[d].ticks(60))
+				    //.bins(self.y[d].ticks())
+				    (transformed_data);
+				    //(values);
+			}
+
+			self.x_hist[d] = d3.scale.linear()
+			    .domain([0, d3.max(self.hist_data[d], function(data) { 
+			    	return data.length;
+			    })])
+			    .range([0, 40]);
+		});
+
+		// If there were active brushes before re-rendering set the brush extents again
+		var filter_to_remove = [];
+		self.active_brushes.forEach (function(p) {
+			if ( self.y.hasOwnProperty(p) ) {
+			    // Re-set brush
+			    self.y[p].brush.extent(self.brush_extents[p]);
+			}else{
+				// Add to remove list
+				filter_to_remove.push(p);
+			}
+		});
 		
-		self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
-		self.brush_extents = {};
-		self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
-		var filter = {};
+		// Remove unnecessary filters
+		for (var i = filter_to_remove.length - 1; i >= 0; i--) {
+			var index = self.active_brushes.indexOf(filter_to_remove[i]);
+			if (index > -1) {
+				self.active_brushes.splice(index, 1);
+			}
+		};
 
-		var active;
-		
-		_.each(self.data, function(row){
-			active = true;
+		if (filter_to_remove.length>0){
+			var filter = {};
 			self.active_brushes.forEach (function(p) {
 				filter[p] = self.brush_extents[p];
-		    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
-		    		active = false;
-		    	}
 	    	});
-			row["active"] = active ? 1 : 0;
-		}); 
-
-		self.filterset(filter);
-
-		self.render();
-		self.parallelsPlot();
-
-	}
-
-	// Resize method, recalculates position of all elements in svg
-	function resize_parallels() {
-
-	    var	width = $(self.selector).width() - self.margin.left - self.margin.right,
-			height = $(self.selector).height() - self.margin.top - self.margin.bottom;
-
-		height = parseInt(height/100 * 40);
-		height-=30;
-
-
-		self.x.rangePoints([0,width]);
-
-		var hd = self.hist_data;
-		var yobj = self.y;
+			self.filterset(filter);
+		}
+			
 
 
 		self.parameters.forEach(function(para) {
 
-			yobj[para].range([height,0]);
-
-			//yobj[para].brush.y(yobj[para]);
-			// TODO: Need for replacement of brushes when modifying height
-	        	
-
 			var bar = svg.selectAll("." + para)
-				.data(self.hist_data[para])
+			    .data(self.hist_data[para])
+			  	.enter().append("g")
+			    .attr("class", "bar "+para)
 			    .attr("transform", function(d) { 
-			    	return "translate(" + self.x(para) + "," + (yobj[para](d.x) - height/hd[para].length) + ")";
+			    	return "translate(" + self.x(para) + "," + (self.y[para](d.x) - height/self.hist_data[para].length) + ")";
 			    });
 
-			/*bar.append("rect")
+			bar.append("rect")
+			    .attr("height", 
+			    	height/self.hist_data[para].length - 1
+			    )
 			    .attr("width", function(d) {
 			    	return self.x_hist[para](d.y);
-				});*/
+				})
+				.style("fill", "#1F77B4");
 
 		});
 
+		//var colors = d3.scale.category10().domain(uniqueArray);
 
 		// Add a group element for each trait.
-		svg.selectAll(".trait")
-			.data(self.parameters)
+		var g = svg.selectAll(".trait")
+		    .data(self.parameters)
+		    .enter().append("svg:g")
+		    //.attr("class", "trait")
+		    .attr("class", function(d) { return "trait " + d; })
 		    .attr("transform", function(d) { 
-		    	return "translate(" + self.x(d) + ")";
+		    	return "translate(" + self.x(d) + ")"; 
 		    });
-
-
-		svg.selectAll('.axis')
-			.data(self.parameters)
+			  
+		// Add an axis and title.
+		g.append("svg:g")
+		    .attr("class", "axis")
 		    .each(function(d) { 
-		    	d3.select(this).call(self.axis.scale(yobj[d]));
+		    	d3.select(this).call(self.axis.scale(self.y[d]));
 		    })
+		    .append("svg:text")
+		    .attr("text-anchor", "middle")
+		    .attr("y", -12)
+		    .html(function (d) { 
+				// Renaming of keys introducing subscript
+				var newkey = "";
+				var parts = d.split("_");
+				if (parts.length>1){
+					newkey = "<tspan>"+parts[0]+"</tspan>";
+					for (var i=1; i<parts.length; i++){
+						var modifier = "";
+						if(i==1)
+							modifier = ' dy="5"';
+						newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+					}
+				}else{
+					newkey = d;
+				}
+				return newkey; 
+			});
 
-		
 
+		// In order to work with the canvas renderer styles need to be applied directlo
+		// to svg elements instead of using a stile. Here we set stroke width and color 
+		// for all ticks and axis paths
+		svg.selectAll('.axis .domain')
+	      	.attr("stroke-width", "2")
+	      	.attr("stroke", "#000")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("fill", "none");
+
+	    svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#000");
+
+	    svg.selectAll('.axis path')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#000");
+
+
+		// Add a brush for each axis.
+		g.append("svg:g")
+		    .attr("class", "brush")
+		    .each(function(d) { d3.select(this).call(self.y[d].brush); })
+		    .selectAll("rect")
+		    .attr("x", -8)
+		    .attr("width", 16);
+
+		// Returns the path for a given data point.
+		function path(d) {
+			return line(self.parameters.map(function(p) {
+			  	return [x(p), self.y[p](d[p])];
+			}));
+		}
+
+		// Handles a brush event, toggling the display of foreground lines.
+		function brushend(parameter) {
+			
+			self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
+			self.brush_extents = {};
+			self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
+			var filter = {};
+
+			var active;
+			
+			_.each(self.data, function(row){
+				active = true;
+				self.active_brushes.forEach (function(p) {
+					filter[p] = self.brush_extents[p];
+			    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
+			    		active = false;
+			    	}
+		    	});
+				row["active"] = active ? 1 : 0;
+			}); 
+
+			self.filterset(filter);
+
+			self.render();
+			self.parallelsPlot();
+
+		}
+
+		// Resize method, recalculates position of all elements in svg
+		function resize_parallels() {
+
+		    var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right,
+				height = $(self.histoEl).height() - self.histoMargin.top - self.histoMargin.bottom;
+
+			self.x.rangePoints([0,width]);
+
+			var hd = self.hist_data;
+			var yobj = self.y;
+
+
+			self.parameters.forEach(function(para) {
+
+				yobj[para].range([height,0]);
+
+				//yobj[para].brush.y(yobj[para]);
+				// TODO: Need for replacement of brushes when modifying height
+		        	
+
+				var bar = svg.selectAll("." + para)
+					.data(self.hist_data[para])
+				    .attr("transform", function(d) { 
+				    	return "translate(" + self.x(para) + "," + (yobj[para](d.x) - height/hd[para].length) + ")";
+				    });
+
+				/*bar.append("rect")
+				    .attr("width", function(d) {
+				    	return self.x_hist[para](d.y);
+					});*/
+
+			});
+
+
+			// Add a group element for each trait.
+			svg.selectAll(".trait")
+				.data(self.parameters)
+			    .attr("transform", function(d) { 
+			    	return "translate(" + self.x(d) + ")";
+			    });
+
+
+			svg.selectAll('.axis')
+				.data(self.parameters)
+			    .each(function(d) { 
+			    	d3.select(this).call(self.axis.scale(yobj[d]));
+			    })
+
+			
+
+		}
+
+		var self = this;
+
+		$(window).resize(resize_parallels);
 	}
-
-	var self = this;
-
-	$(window).resize(resize_parallels);
 }
 
 

@@ -31,18 +31,13 @@
             <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
 
-        <div id="canvas" style="width:100%;height:100%;position:absolute;display:block;top:0px; padding: 25px;"></div>
+        <div id="scatter" style="width:100%;height:60%;position:absolute; top:0"></div>
+        <div id="histograms" style="width:100%;height:40%;position:absolute; bottom:0"></div>
         
         <div style="position:absolute; left:50%; top:0px;">
-            <div class="dropdown">
-                <a class="btn btn-primary dropdown-toggle" data-toggle="dropdown" href="#">Plot type</a>
-                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                    <li><a tabindex="-1" href="#" onclick="onscatterPlot()">ScatterPlot</a></li>
-                    <li><a tabindex="-1" href="#" onclick="onboxPlot()">BoxPlot</a></li>
-                    <li><a tabindex="-1" href="#" onclick="onstackedPlot()">Stacked Bars</a></li>
-                    <li><a tabindex="-1" href="#" onclick="onparallelsPlot()">Parallel</a></li>
-                    <li><a tabindex="-1" href="#" onclick="onlinePlot()">Line</a></li>
-                </ul>
+            <div class="renderbutton">
+                <button class="btn btn-primary" onclick="onscatterPlot()">Render ScatterPlot</button>
+                
             </div>
         </div>
 
@@ -54,15 +49,6 @@
         <!-- endbower -->
         <!-- endbuild -->
 
-        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
-        <script>
-            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
-            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
-            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
-            e.src='//www.google-analytics.com/analytics.js';
-            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
-            ga('create','UA-XXXXX-X');ga('send','pageview');
-        </script>
 
         <!-- build:js scripts/main_analytics.js -->
         <script src="scripts/main.js"></script>
@@ -71,7 +57,6 @@
 
         <script src="bower_components/sass-bootstrap/dist/js/bootstrap.min.js"></script>
         <script src="bower_components/d3/d3.min.js"></script>
-        <script src="bower_components/nvd3/nv.d3.min.js"></script>
         <script src="bower_components/underscore/underscore-min.js"></script>
 
         
@@ -79,12 +64,8 @@
 		<!-- build:js scripts/analytics.min.js -->
         <script src="scripts/vendor/jquery.sumoselect.js"></script>
         <script src="scripts/vendor/rgbcolor.js"></script>
-        <script src="scripts/vendor/StackBlur.js"></script>
         <script src="scripts/vendor/canvg.js"></script>
-        <script src="scripts/box.js"></script>
-        <script src="scripts/fisheye.js"></script>
         <script src="scripts/scatter.js"></script>
-        <script src="scripts/analytics.js"></script>
         <!-- endbuild -->
 
 
