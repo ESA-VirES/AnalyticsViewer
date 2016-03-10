@@ -450,8 +450,8 @@ scatterPlot.prototype.render = function(){
 		var x_select = d3.select(this.scatterEl)
 			.insert("div")
 				.attr("class", "xselectdropdown")
-				.attr("style", "position: relative; float: right"+
-					+"width:120px;"+"bottom:5px;")
+				.attr("style", "position: relative; float:right;"+
+					"width:120px;"+"bottom:45px; right:160px")
 				.append("select")
 					.attr("style", "width: 250px;");
 
