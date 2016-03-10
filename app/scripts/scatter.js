@@ -3,7 +3,7 @@
 function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
 
-function scatterPlot(args, callback, mouseover, mouseout, filterset) {
+function scatterPlot(args, callback, openinfo, filterset) {
 
 
 	this.scatterEl = args.scatterEl;
@@ -19,8 +19,7 @@ function scatterPlot(args, callback, mouseover, mouseout, filterset) {
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
 
-	this.mouseover = mouseover;
-	this.mouseout = mouseout;
+	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.callback = callback;
 	this.headerNames = null;
@@ -451,9 +450,8 @@ scatterPlot.prototype.render = function(){
 		var x_select = d3.select(this.scatterEl)
 			.insert("div")
 				.attr("class", "xselectdropdown")
-				.attr("style", "position: absolute; z-index: 150;"+
-					"right:"+(this.margin.right+120)+"px;"+"width:120px;"+
-					"bottom:5px;")
+				.attr("style", "position: relative; float: right"+
+					+"width:120px;"+"bottom:5px;")
 				.append("select")
 					.attr("style", "width: 250px;");
 
@@ -839,7 +837,7 @@ scatterPlot.prototype.render = function(){
 	        		self.selectedpoint = null;
 	        	}
 
-				self.mouseover(d);
+				self.openinfo(d);
 
 				self.selectedpoint = $(this);
 
@@ -869,6 +867,7 @@ scatterPlot.prototype.render = function(){
 	                	.style("display", "none");
 	                	self.selectedpoint.attr("r",3.5);
 	        			self.selectedpoint = null;
+	        			self.openinfo(null);
 				});
 	            
 	            // Close tooltip if interaction is done anywhere else.
@@ -880,6 +879,7 @@ scatterPlot.prototype.render = function(){
 			                	.style("display", "none");
 		                	self.selectedpoint.attr("r",3.5);
 		        			self.selectedpoint = null;
+		        			self.openinfo(null);
 	            		}
 	            		
 	            	}
