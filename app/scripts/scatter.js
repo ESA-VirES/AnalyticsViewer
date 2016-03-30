@@ -51,14 +51,16 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
+	d3.selectAll(".point-tooltip").remove();
 
-	this.tooltip = d3.select("body").append("div")   
+	this.tooltip = d3.select("body").append("div")
         .attr("class", "point-tooltip");
 	
 
 }
 
 scatterPlot.prototype.loadData = function loadData(args){
+
 	var self = this;
 
 	if(args.url){
@@ -105,7 +107,7 @@ scatterPlot.prototype.parseData = function parseData(values){
 	var value;
 	var self = this;
 
-
+	this.data = null;
 	self.data = values;
 	// Extract the list of dimensions
     // For each dimension, guess if numeric value or not and create vert scales
@@ -246,11 +248,6 @@ scatterPlot.prototype.initData = function initData(){
 
     this.sel_y = controlled_sel_y;
 
-
-    
-
-
-
 	// Create colorscale for all available parameters
 	
 	self.parameter_colors = d3.scale.ordinal().domain(d3.keys(self.data[0])).range(self.parameter_color_range);
@@ -316,10 +313,23 @@ scatterPlot.prototype.render = function(){
 	this.height = height;
 	this.width = width;
 
-	$(this.scatterEl).empty()
+	// Doing some cleanup as just emptyig the div does not seem to cleanup correctly
+	for (var i = this.sel_y.length - 1; i >= 0; i--) {
+		var par = this.sel_y[i];
+		d3.select('svg').selectAll(".dot_"+par).remove();
 
+	};
 
-	d3.select("body").append("canvas")   
+	// Clenaup of possible event bound objects
+    d3.select("#save").remove();
+    d3.select("#pngdataurl").remove();
+    d3.select("#grid").remove();
+
+    d3.selectAll(".SumoSelect").remove();
+
+	d3.select(this.scatterEl).selectAll("*").remove();
+
+	d3.select("body").append("canvas")
 		.attr("id", "imagerenderer")
         .attr("width", $(this.scatterEl).width())
         .attr("height", $(this.scatterEl).height())
@@ -327,7 +337,7 @@ scatterPlot.prototype.render = function(){
 
     d3.select("body").append("div").attr("id", "pngdataurl");
 
-	d3.select(this.scatterEl).append("button")   
+	d3.select(this.scatterEl).append("button")
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "save")
@@ -351,8 +361,6 @@ scatterPlot.prototype.render = function(){
 		a.download = "Analytics.png";
 		a.href = c.toDataURL("image/png");
 
-
-		
 		a.click();
 		d3.select("#pngdataurl").selectAll("*").remove();
 
@@ -360,7 +368,7 @@ scatterPlot.prototype.render = function(){
 
 	// Add button for grid toggle
 	
-	this.gridselector = d3.select(this.scatterEl).append("button")   
+	this.gridselector = d3.select(this.scatterEl).append("button")
         .attr("type", "button")
         .attr("class", "btn btn-success")
         .attr("id", "grid")
@@ -1059,16 +1067,27 @@ scatterPlot.prototype.colatitude = function colatitude (productid){
 scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 	if(this.histoEl){
-		
-		$(this.histoEl).empty()
-
-		var uniqueArray = [];
-		var domain = [];
 
 		var self = this;
 
 		// Clone array
 		this.parameters = this.headerNames.slice(0);
+
+		// Do some cleanup (especially on objects with events)
+		d3.selectAll(".brush").remove();
+		d3.select("#reset_filters").remove();
+
+		this.parameters.forEach(function(para) {
+			var histosvg = d3.select(self.histoEl).select('svg');
+			histosvg.selectAll("." + para).remove();
+			histosvg.selectAll('.trait.'+para).remove();
+		});
+
+		$(this.histoEl).empty();
+
+
+		var uniqueArray = [];
+		var domain = [];
 
 		// Remove parameters which are vectors and additionally timestamp
 		_.each(this.col_vec.concat("Timestamp").concat("active").concat("F_wmm2010"), function(n){
@@ -1103,7 +1122,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// User general formatting for ticks on Axis
 		this.axis.tickFormat(d3.format(".3g"));
 
-
 		var svg = d3.select(this.histoEl).append("svg")
 			.attr("class", "parallels")
 		    .attr("width", width)
@@ -1112,61 +1130,37 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		  	.attr("display", "block")
 		  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
 
+		d3.select(this.histoEl).append("button")
+	        .attr("type", "button")
+	        .attr("class", "btn btn-success")
+	        .attr("disabled", true)
+	        .attr("id", "reset_filters")
+	        .attr("style", "position: absolute; left: 62px; top:-30px;")
+	        .text("Reset Filters");
+
+	    if (self.active_brushes.length>0){
+			// Activate clear filter button
+			d3.select("#reset_filters").attr('disabled', null);
+		}
+
+		d3.select("#reset_filters").on("click", function(){
+			self.active_brushes = [];
+			self.filterset({});
+
+			_.each(self.data, function(row){
+				row["active"] = true;
+			}); 
+
+			self.parallelsPlot();
+			self.render();
+		});
+
 
 
 	    var self = this;
 	    self.svg = svg;
 		// Create a scale and brush for each trait.
 		self.parameters.forEach(function(d) {
-
-
-
-
-			/*var xScale, format_x;
-
-			if (self.col_date.indexOf(d) != -1){
-				xScale = d3.time.scale().range([height, 0]);
-				format_x = d3.time.format(self.format_date);
-			}else if(self.col_ordinal.indexOf(d) != -1){
-				xScale = d3.scale.ordinal().rangePoints([height, 0]);
-			}else{
-				xScale = d3.scale.linear().range([height, 0]);
-				format_x = d3.format('.3g');
-			}
-
-			var xAxis = d3.svg.axis()
-			    .scale(xScale)
-			    .orient("bottom")
-			    .tickFormat(format_x);
-
-
-			if(self.col_vec.indexOf(d) != -1){
-				var length_array = [];
-				self.data.forEach(function(data) {
-					var vec_length = 0;
-					for (var i = data[d].length - 1; i >= 0; i--) {
-						vec_length += Math.exp(d[d][i]);
-					};
-					vec_length = Math.sqrt(vec_length);
-					length_array.push(vec_length);
-				});
-
-				xScale.domain(d3.extent(length_array, function(data) { 
-				 	return data;
-				})).nice();
-			}else if(self.col_ordinal.indexOf(d) != -1){
-				xScale.domain(self.data.map(function(data) { 
-					return data[d]; 
-				}));
-			}else{
-				xScale.domain(d3.extent(self.data, function(data) { 
-				 	return data[d];
-				})).nice();
-			}
-
-
-			self.y[d] = xAxis;*/
-
 
 			if(self.col_ordinal.indexOf(d) != -1){
 				self.y[d] = d3.scale.ordinal()
@@ -1230,6 +1224,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				    (transformed_data);
 				    //(values);
 			}
+			transformed_data = null;
 
 			self.x_hist[d] = d3.scale.linear()
 			    .domain([0, d3.max(self.hist_data[d], function(data) { 
@@ -1386,6 +1381,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			}); 
 
 			self.filterset(filter);
+			
 
 			self.render();
 			self.parallelsPlot();
