@@ -51,10 +51,10 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
-	d3.selectAll(".point-tooltip").remove();
+	d3.selectAll(".AV-point-tooltip").remove();
 
 	this.tooltip = d3.select("body").append("div")
-        .attr("class", "point-tooltip");
+        .attr("class", "AV-point-tooltip");
 	
 
 }
@@ -880,7 +880,7 @@ scatterPlot.prototype.render = function(){
 	            
 	            // Close tooltip if interaction is done anywhere else.
 	            $(document).on("mousedown", function(e){
-	            	if (e.target.nodeName!="circle" && e.target.className!="point-tooltip"){
+	            	if (e.target.nodeName!="circle" && e.target.className!="AV-point-tooltip"){
 	            		if(self.selectedpoint){
 	            			self.tooltip.transition()        
 			                	.duration(100)      
@@ -1074,7 +1074,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		this.parameters = this.headerNames.slice(0);
 
 		// Do some cleanup (especially on objects with events)
-		d3.selectAll(".brush").remove();
+		d3.select(self.histoEl).selectAll(".brush").remove();
 		d3.select("#reset_filters").remove();
 
 		this.parameters.forEach(function(para) {
