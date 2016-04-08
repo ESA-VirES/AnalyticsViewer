@@ -1155,6 +1155,34 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			self.render();
 		});
 
+		// Handles a brush event, toggling the display of foreground lines.
+		function brushend(parameter) {
+			
+			self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
+			self.brush_extents = {};
+			self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
+			var filter = {};
+
+			var active;
+			
+			_.each(self.data, function(row){
+				active = true;
+				self.active_brushes.forEach (function(p) {
+					filter[p] = self.brush_extents[p];
+			    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
+			    		active = false;
+			    	}
+		    	});
+				row["active"] = active ? 1 : 0;
+			}); 
+
+			self.filterset(filter);
+			
+
+			self.render();
+			self.parallelsPlot();
+
+		}
 
 
 	    var self = this;
@@ -1359,34 +1387,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			}));
 		}
 
-		// Handles a brush event, toggling the display of foreground lines.
-		function brushend(parameter) {
-			
-			self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
-			self.brush_extents = {};
-			self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
-			var filter = {};
-
-			var active;
-			
-			_.each(self.data, function(row){
-				active = true;
-				self.active_brushes.forEach (function(p) {
-					filter[p] = self.brush_extents[p];
-			    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
-			    		active = false;
-			    	}
-		    	});
-				row["active"] = active ? 1 : 0;
-			}); 
-
-			self.filterset(filter);
-			
-
-			self.render();
-			self.parallelsPlot();
-
-		}
 
 		// Resize method, recalculates position of all elements in svg
 		function resize_parallels() {
