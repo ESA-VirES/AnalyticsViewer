@@ -351,10 +351,18 @@ scatterPlot.prototype.render = function(){
 			.attr("xmlns", "http://www.w3.org/2000/svg")
 			.node().innerHTML;
 
+		var renderHeight = $(self.scatterEl).height();
+		var renderWidth = $(self.scatterEl).width();
+
+		$("#imagerenderer").attr('width', renderWidth);
+		$("#imagerenderer").attr('height', renderHeight);
+
 		var c = document.querySelector("#imagerenderer");
 		var ctx = c.getContext('2d');
 		
-		ctx.drawSvg(svg_html, 0, 0, self.width, self.height);
+		
+		ctx.drawSvg(svg_html, 0, 0, renderHeight, renderWidth);
+		
 
 		//var a = document.createElement("a");
 		var a = d3.select("#pngdataurl").append("a")[0][0];
@@ -522,20 +530,6 @@ scatterPlot.prototype.render = function(){
 	    .orient("bottom")
 	    .tickFormat(format_x);
 
-	// Use first selected element of y axis as definer for axis domain and scale
-
-	var firstYSelection = this.sel_y[0];
-
-	if (this.col_date.indexOf(firstYSelection) != -1){
-		yScale = d3.time.scale().range([height, 0]);
-		//format_y = d3.time.format(self.format_date);
-	}else if(this.col_ordinal.indexOf(firstYSelection) != -1){
-		yScale = d3.scale.ordinal().rangePoints([height-this.margin.bottom, 0]);
-	}else{
-		yScale = d3.scale.linear().range([height-this.margin.bottom, 0]);
-		//format_y = d3.format('.3g');
-	}
-
 
 	if(this.col_vec.indexOf(this.sel_x) != -1){
 		var length_array = [];
@@ -587,44 +581,63 @@ scatterPlot.prototype.render = function(){
 
 	var yScale, format_y;
 
+	// Use first selected element of y axis as definer for axis domain and scale
+
+	var firstYSelection = this.sel_y[0];
+
+	if (this.col_date.indexOf(firstYSelection) != -1){
+		yScale = d3.time.scale().range([height, 0]);
+		//format_y = d3.time.format(self.format_date);
+	}else if(this.col_ordinal.indexOf(firstYSelection) != -1){
+		yScale = d3.scale.ordinal().rangePoints([height-this.margin.bottom, 0]);
+	}else{
+		yScale = d3.scale.linear().range([height-this.margin.bottom, 0]);
+		//format_y = d3.format('.3g');
+	}
+
 	var yAxis = d3.svg.axis()
 	    .scale(yScale)
 	    .orient("left")
 	    .tickFormat(format_y);
 
+
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
 
-		var tmp_domain;
+		var tmp_domain, niceDomain;
+		var par = this.sel_y[i];
 
-		if(this.col_ordinal.indexOf(firstYSelection) != -1){
+		if(this.col_ordinal.indexOf(par) != -1){
 			tmp_domain = this.data.map(function(d) { 
-				return d[firstYSelection]; 
+				return d[par]; 
 			});
 		}else{
 			tmp_domain = d3.extent(this.data, function(d) { 
-			 	return d[firstYSelection];
+			 	return d[par];
 			});
 		}
 
 
-		/*var tmp_domain = d3.extent(this.data, function(d) { 
-			return d[self.sel_y[i]];
-		});*/
 
-		// If the parameter minimum is bigger then a previously set minimum and the 
-		// currently set minimum is not the default 0 overwrite it
-		if(tmp_domain[0] > yScale.domain()[0] && yScale.domain()[0] != 0){
-			tmp_domain[0] = yScale.domain()[0];
-		}
-		// If the parameter maximum is lower then a previously set maximum overwrite it
-		// and the currently set maximum is not the default 1 overwrite it
-		if(tmp_domain[1] < yScale.domain()[1] && yScale.domain()[1] != 1){
-			tmp_domain[1] = yScale.domain()[1];
-		}
+		if (tmp_domain[0] instanceof Date){
+			// If domain is temporal just return as is
+			niceDomain = tmp_domain;
 
-		// 5% buffer so points are not drawn exactly on axis
-		var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
-		var niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
+		}else{
+
+			// If the parameter minimum is bigger then a previously set minimum and the 
+			// currently set minimum is not the default 0 overwrite it
+			if(tmp_domain[0] > yScale.domain()[0] && yScale.domain()[0] != 0){
+				tmp_domain[0] = yScale.domain()[0];
+			}
+			// If the parameter maximum is lower then a previously set maximum overwrite it
+			// and the currently set maximum is not the default 1 overwrite it
+			if(tmp_domain[1] < yScale.domain()[1] && yScale.domain()[1] != 1){
+				tmp_domain[1] = yScale.domain()[1];
+			}
+			// 5% buffer so points are not drawn exactly on axis
+			var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
+			niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
+		}
 
 		yScale.domain(niceDomain);
 	};
@@ -642,7 +655,8 @@ scatterPlot.prototype.render = function(){
 	svg.append("rect")
 		.attr("width", width)
 		.attr("height", height)
-		.attr("fill", "transparent");
+		.attr("fill", "transparent")
+		.attr("stroke", "none");
 
 	// Add clip path so only points in the area are shown
 	var clippath = svg.append("defs").append("clipPath")
