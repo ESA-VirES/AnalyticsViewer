@@ -362,15 +362,10 @@ scatterPlot.prototype.render = function(){
 		
 		
 		ctx.drawSvg(svg_html, 0, 0, renderHeight, renderWidth);
-		
 
-		//var a = document.createElement("a");
-		var a = d3.select("#pngdataurl").append("a")[0][0];
-		a.download = "Analytics.png";
-		a.href = c.toDataURL("image/png");
-
-		a.click();
-		d3.select("#pngdataurl").selectAll("*").remove();
+		c.toBlob(function(blob) {
+			saveAs(blob, "Analytics.png");
+		}, "image/png");
 
 	});
 

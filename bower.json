@@ -6,7 +6,10 @@
     "modernizr": "~2.6.2",
     "jquery": "~1.10.2",
     "d3": "~3.3.10",
-    "underscore": "~1.5.2"
+    "underscore": "~1.5.2",
+    "FileSaver.js": "eligrey/FileSaver.js",
+    "canvas-toBlob.js": "eligrey/canvas-toBlob.js",
+    "Blob.js": "eligrey/Blob.js"
   },
   "ignore": [
     "**/.*",
