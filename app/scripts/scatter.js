@@ -86,7 +86,7 @@ scatterPlot.prototype.loadData = function loadData(args){
 }
 
 scatterPlot.prototype.analyseData = function analyseData(){
-
+	this.col_ordinal = [];
 	for(var key in this.data[0]){
 		// Check if column is a date
     	if(this.data[0][key] instanceof Date){
@@ -114,6 +114,7 @@ scatterPlot.prototype.parseData = function parseData(values){
     all_dims = d3.keys(self.data[0]);
     this.residuals = false;
     var res_key = "";
+    this.col_ordinal = [];
 
 
     // Check for residuals
@@ -1307,7 +1308,11 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			  	.enter().append("g")
 			    .attr("class", "bar "+para)
 			    .attr("transform", function(d) { 
-			    	return "translate(" + self.x(para) + "," + (self.y[para](d.x) - height/self.hist_data[para].length) + ")";
+			    	var height_modifier = self.y[para](d.x) - height/self.hist_data[para].length;
+			    	if(!height_modifier){
+			    		height_modifier = 0;
+			    	}
+			    	return "translate(" + self.x(para) + "," + height_modifier + ")";
 			    });
 
 			bar.append("rect")
