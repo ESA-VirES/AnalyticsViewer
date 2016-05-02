@@ -1362,8 +1362,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				}else{
 					newkey = d;
 				}
-				return newkey; 
+				return newkey;
 			});
+			
 
 
 		// In order to work with the canvas renderer styles need to be applied directlo
