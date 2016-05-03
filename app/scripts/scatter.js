@@ -512,8 +512,17 @@ scatterPlot.prototype.render = function(){
 	var xScale, format_x;
 
 	if (this.col_date.indexOf(this.sel_x) != -1){
-		xScale = d3.time.scale().range([0, width]);
-		//format_x = d3.time.format(self.format_date);
+		xScale = d3.time.scale.utc().range([0, width]);
+		format_x = d3.time.format.utc.multi([
+		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
+		    [":%S", function(d) { return d.getUTCSeconds(); }],
+		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
+		    ["%H:%M", function(d) { return d.getHours(); }],
+		    ["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
+		    ["%b %d", function(d) { return d.getUTCDate() != 1; }],
+		    ["%B", function(d) { return d.getUTCMonth(); }],
+		    ["%Y", function() { return true; }]
+		 ]);
 	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
 		xScale = d3.scale.ordinal().rangePoints([0, width]);
 	}else{
@@ -582,8 +591,17 @@ scatterPlot.prototype.render = function(){
 	var firstYSelection = this.sel_y[0];
 
 	if (this.col_date.indexOf(firstYSelection) != -1){
-		yScale = d3.time.scale().range([height, 0]);
-		//format_y = d3.time.format(self.format_date);
+		yScale = d3.time.scale.utc().range([height-this.margin.bottom, 0]);
+		format_y = d3.time.format.utc.multi([
+		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
+		    [":%S", function(d) { return d.getUTCSeconds(); }],
+		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
+		    ["%H:%M", function(d) { return d.getHours(); }],
+		    ["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
+		    ["%b %d", function(d) { return d.getUTCDate() != 1; }],
+		    ["%B", function(d) { return d.getUTCMonth(); }],
+		    ["%Y", function() { return true; }]
+		 ]);
 	}else if(this.col_ordinal.indexOf(firstYSelection) != -1){
 		yScale = d3.scale.ordinal().rangePoints([height-this.margin.bottom, 0]);
 	}else{
@@ -862,8 +880,14 @@ scatterPlot.prototype.render = function(){
 				var values = "";
 				for(var propName in d) {
 				    propValue = d[propName]
-				    values = values + propName + ": " + propValue + "<br>";
+				    if (propValue instanceof Date){
+				    	propValue = propValue.toISOString();
+				    }
+				    if(propName != "active"){
+					    values = values + propName + ": " + propValue + "<br>";
+					}
 				}
+				values = '<br>'+values;
 
 	            self.tooltip.transition()
 	                .duration(100)
@@ -1134,8 +1158,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 		var svg = d3.select(this.histoEl).append("svg")
 			.attr("class", "parallels")
-		    .attr("width", width)
-		    .attr("height", height)
+		    .attr("width", $(this.histoEl).width())
+		    .attr("height", $(this.histoEl).height())
 		  	.append("g")
 		  	.attr("display", "block")
 		  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
@@ -1346,7 +1370,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		    })
 		    .append("svg:text")
 		    .attr("text-anchor", "middle")
-		    .attr("y", -12)
+		    .attr("y", -15)
 		    .html(function (d) { 
 				// Renaming of keys introducing subscript
 				var newkey = "";
@@ -1408,6 +1432,10 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 		    var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right,
 				height = $(self.histoEl).height() - self.histoMargin.top - self.histoMargin.bottom;
+
+			d3.select(".parallels")
+			    .attr("width", $(self.histoEl).width())
+			    .attr("height", $(self.histoEl).height());
 
 			self.x.rangePoints([0,width]);
 

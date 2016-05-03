@@ -5,7 +5,7 @@
     "sass-bootstrap": "~3.0.0",
     "modernizr": "~2.6.2",
     "jquery": "~1.10.2",
-    "d3": "~3.3.10",
+    "d3": "~3.5.16",
     "underscore": "~1.5.2",
     "FileSaver.js": "eligrey/FileSaver.js",
     "canvas-toBlob.js": "eligrey/canvas-toBlob.js",

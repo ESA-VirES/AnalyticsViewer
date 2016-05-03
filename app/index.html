@@ -21,18 +21,17 @@
         <!-- endbuild -->
 
         <!-- build:css(.tmp) styles/av_plugins.css -->
-            <link href="bower_components/nvd3/nv.d3.min.css" rel="stylesheet" type="text/css">
         <!-- endbuild -->
 
 
     </head>
-    <body>
+    <body style="height: 100%; width:100%;position: absolute;">
         <!--[if lt IE 10]>
             <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
 
-        <div id="scatter" style="width:100%;height:60%;position:absolute; top:0"></div>
-        <div id="histograms" style="width:100%;height:40%;position:absolute; bottom:0"></div>
+        <div id="scatter" style="width:100%;height:60%;position: relative;"></div>
+        <div id="histograms" style="width:100%;height:38%;position: relative;margin-left: -30px;"></div>
         
         <div style="position:absolute; left:50%; top:0px;">
             <div class="renderbutton">
@@ -58,7 +57,7 @@
          <!-- Dependencies to get saveAs functionality kind of working in Safari-->
         <script src="bower_components/Blob.js/Blob.js"></script>
         <script src="bower_components/canvas-toBlob.js/canvas-toBlob.js"></script>
-        <script src="bower_components/filesaver/FileSaver.min.js"></script>
+        <script src="bower_components/FileSaver.js/FileSaver.min.js"></script>
 
         
 
