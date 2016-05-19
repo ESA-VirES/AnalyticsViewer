@@ -77,3 +77,13 @@ svg {
   width: auto;
   display: inline;
 }*/
+
+/*rect.zoom.xy.box{
+  cursor: move;
+}*/
+rect.zoom.x.box{
+  cursor: ew-resize;
+}
+rect.zoom.y.box{
+  cursor: ns-resize;
+}

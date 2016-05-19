@@ -659,18 +659,18 @@ scatterPlot.prototype.render = function(){
 
 
 	// Define zoom behaviour based on parameter dependend x and y scales
-	var zoom = d3.behavior.zoom()
-	    .x(xScale)
-	    .y(yScale)
-	    .scaleExtent([1, 10])
-	    .on("zoom", zoomed);
+	var xyzoom = d3.behavior.zoom()
+      .x(xScale)
+      .y(yScale)
+      .on("zoom", zoomed);
 
-	// Add rect to allow zoom and pan interaction over complete graph
-	svg.append("rect")
-		.attr("width", width)
-		.attr("height", height)
-		.attr("fill", "transparent")
-		.attr("stroke", "none");
+    var xzoom = d3.behavior.zoom()
+      .x(xScale)
+      .on("zoom", zoomed);
+
+    var yzoom = d3.behavior.zoom()
+      .y(yScale)
+      .on("zoom", zoomed);
 
 	// Add clip path so only points in the area are shown
 	var clippath = svg.append("defs").append("clipPath")
@@ -679,15 +679,32 @@ scatterPlot.prototype.render = function(){
 	        .attr("width", width)
 	        .attr("height", (height-this.margin.bottom));
 
-
-	svg.attr("pointer-events", "all");
-	svg.call(zoom);
-
 	function zoomed() {
 		svg.select(".x.axis").call(xAxis);
 		svg.select(".y.axis").call(yAxis);
+		zoom_update();
 		resize();
+
 	}
+
+
+	// Update zoom methods
+	function zoom_update() {
+      xyzoom = d3.behavior.zoom()
+        .x(xScale)
+        .y(yScale)
+        .on("zoom", zoomed);
+      xzoom = d3.behavior.zoom()
+        .x(xScale)
+        .on("zoom", zoomed);
+      yzoom = d3.behavior.zoom()
+        .y(yScale)
+        .on("zoom", zoomed);
+
+      svg.select('rect.zoom.xy.box').call(xyzoom);
+      svg.select('rect.zoom.x.box').call(xzoom);
+      svg.select('rect.zoom.y.box').call(yzoom);
+    }
 
 
 	this.gridselector.on("click", function() {
@@ -832,7 +849,17 @@ scatterPlot.prototype.render = function(){
     svg.select('.y.axis')
       .call(yAxis);
 
-    
+    // Add rect to allow zoom and pan interaction over complete graph
+	svg.append("rect")
+		.attr("width", width)
+		.attr("height", height-self.margin.bottom)
+		.attr("class", "zoom xy box")
+		.style("visibility", "hidden")
+		.attr("fill", "yellow")
+		.attr("stroke", "none")
+		.attr("pointer-events", "all")
+		.call(xyzoom);
+		
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
 
@@ -980,8 +1007,6 @@ scatterPlot.prototype.render = function(){
     svg.selectAll('text').style("stroke", "none");
 
 
-
-
 	// Resize method, recalculates position of all elements in svg
 	function resize() {
 	    var width = $(self.scatterEl).width() - self.margin.left - self.margin.right,
@@ -990,13 +1015,23 @@ scatterPlot.prototype.render = function(){
 	 	self.height = height;
 		self.width = width;
 
-	 	clippath.attr("width", width).attr("height", (height-self.margin.bottom));
+	 	svg.select("#clip").selectAll("rect")
+	 		.attr("width", width)
+	        .attr("height", (height-self.margin.bottom));
 
-	 	// Update Rect size
-	 	// Add rect to allow zoom and pan interaction over complete graph
-		svg.select("rect")
+	 	// Update zoom and pan handles size
+		svg.select('rect.zoom.xy.box')
 			.attr("width", width)
-			.attr("height", height);
+			.attr("height", height-self.margin.bottom);
+
+		svg.select('rect.zoom.x.box')
+			.attr("width", width)
+			.attr("height", self.margin.bottom)
+			.attr("transform", "translate(" + 0 + "," + (height - self.margin.bottom) + ")");
+
+		svg.select('rect.zoom.y.box')
+			.attr("width", self.margin.left)
+			.attr("height", height - self.margin.bottom);
 
 	    // Update the range of the scale with new width/height
 	    xScale.range([0, width]);
@@ -1060,6 +1095,26 @@ scatterPlot.prototype.render = function(){
 	}
 
 	$(window).resize(resize);
+
+	svg.append("rect")
+		.attr("class", "zoom x box")
+		.attr("width", width)
+		.attr("height", this.margin.bottom)
+		.attr("fill", "blue")
+		.attr("transform", "translate(" + 0 + "," + (height - this.margin.bottom) + ")")
+		.style("visibility", "hidden")
+		.attr("pointer-events", "all")
+		.call(xzoom);
+
+	svg.append("rect")
+		.attr("class", "zoom y box")
+		.attr("width", this.margin.left)
+		.attr("height", height - this.margin.bottom)
+		.attr("transform", "translate(" + -this.margin.left + "," + 0 + ")")
+		.attr("fill", "red")
+		.style("visibility", "hidden")
+		.attr("pointer-events", "all")
+		.call(yzoom);
 
 
 }
