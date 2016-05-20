@@ -19,6 +19,8 @@ function scatterPlot(args, callback, openinfo, filterset) {
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
 
+	this.imageplot = defaultFor(args.imageplot, null);
+
 	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.callback = callback;
@@ -48,6 +50,10 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.width = null;
 	this.selectedpoint = null;
 	this.residuals = false;
+
+	// Initial offset & scale of image
+	this.img_translate = [0, 0];
+	this.img_scale = 1;
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
@@ -680,8 +686,13 @@ scatterPlot.prototype.render = function(){
 	        .attr("height", (height-this.margin.bottom));
 
 	function zoomed() {
+		
 		svg.select(".x.axis").call(xAxis);
 		svg.select(".y.axis").call(yAxis);
+
+		// Update image accordingly
+		svg.select("image").attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+
 		zoom_update();
 		resize();
 
@@ -859,6 +870,13 @@ scatterPlot.prototype.render = function(){
 		.attr("stroke", "none")
 		.attr("pointer-events", "all")
 		.call(xyzoom);
+
+
+	svg.append("image")
+		.attr("width",  width)
+		.attr("height", height-self.margin.bottom)
+		.attr("preserveAspectRatio", "none")
+		.attr("xlink:href", self.imageplot.image);
 		
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
