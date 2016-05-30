@@ -10,7 +10,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.margin = defaultFor(
 		args.margin,
-		{top: 50, right: 40, bottom: 35, left: 70}
+		{top: 50, right: 130, bottom: 35, left: 70}
 	);
 
 	this.histoEl = defaultFor(args.histoEl, false);
@@ -48,6 +48,14 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.width = null;
 	this.selectedpoint = null;
 	this.residuals = false;
+
+	this.renderBlocks = defaultFor(args.renderBlocks, false);
+	this.dataRange = defaultFor(args.dataRange, false);
+
+	this.plotter = new plotty.plot({
+		canvas: $('<canvas>')[0],
+		domain: this.dataRange
+	});
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
@@ -334,7 +342,9 @@ scatterPlot.prototype.render = function(){
 		.attr("id", "imagerenderer")
         .attr("width", $(this.scatterEl).width())
         .attr("height", $(this.scatterEl).height())
-        .attr("style", "display: none");
+        .attr("style", "display: none")
+        .attr("xmlns", "http://www.w3.org/2000/svg" )
+     	.attr("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
     d3.select("body").append("div").attr("id", "pngdataurl");
 
@@ -517,12 +527,13 @@ scatterPlot.prototype.render = function(){
 		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
 		    [":%S", function(d) { return d.getUTCSeconds(); }],
 		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
-		    ["%H:%M", function(d) { return d.getHours(); }],
-		    ["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
-		    ["%b %d", function(d) { return d.getUTCDate() != 1; }],
-		    ["%B", function(d) { return d.getUTCMonth(); }],
+		    ["%H:%M", function(d) { return d.getUTCHours(); }],
+		    ["%b %d %Y ", function(d) { return d.getUTCDay() && d.getUTCDate() != 1; }],
+		    ["%b %d %Y", function(d) { return d.getUTCDate() != 1; }],
+		    ["%B %Y", function(d) { return d.getUTCMonth(); }],
 		    ["%Y", function() { return true; }]
 		 ]);
+
 	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
 		xScale = d3.scale.ordinal().rangePoints([0, width]);
 	}else{
@@ -855,17 +866,250 @@ scatterPlot.prototype.render = function(){
 		.attr("height", height-self.margin.bottom)
 		.attr("class", "zoom xy box")
 		.style("visibility", "hidden")
-		.attr("fill", "yellow")
+		//.attr("fill", "yellow")
 		.attr("stroke", "none")
+		.attr("fill", "transparent")
 		.attr("pointer-events", "all")
 		.call(xyzoom);
-		
+
+
+
+	if(this.dataRange){
+
+		var colorAxisScale = d3.scale.linear();
+		colorAxisScale.domain(this.dataRange);
+		colorAxisScale.range([(height-self.margin.bottom), 0]);
+
+		var colorAxis = d3.svg.axis()
+			.orient("right")
+			.tickSize(5)
+			.scale(colorAxisScale);
+
+		var step = (colorAxisScale.domain()[1] - colorAxisScale.domain()[0]) / 10;
+		colorAxis.tickValues(
+			d3.range(colorAxisScale.domain()[0],colorAxisScale.domain()[1]+step, step)
+		)
+
+		colorAxis.tickFormat(d3.format(".3e"));
+
+		var g = svg.append("g")
+			.attr("class", "color axis")
+			.attr("transform", "translate(" + (width+40) + " ,0)")
+			.call(colorAxis);
+
+		svg.selectAll('.color.axis path')
+			.attr("fill", "none")
+			.attr("shape-rendering", "crispEdges")
+			.attr("stroke", "#000")
+			.attr("stroke-width", "2");
+
+		svg.selectAll('.color.axis line')
+			.attr("stroke-width", "2")
+			.attr("shape-rendering", "crispEdges")
+			.attr("stroke", "#000");
+
+		var image = this.plotter.getColorScaleImage().toDataURL("image/jpg");
+
+		svg.append("image")
+			.attr("class", "colorscaleimage")
+			.attr("width",  height-self.margin.bottom)
+			.attr("height", 20)
+			.attr("transform", "translate(" + (width+17) + " ,"+(height-self.margin.bottom)+") rotate(270)")
+			.attr("preserveAspectRatio", "none")
+			.attr("xlink:href", image);
+	}
+
+
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
 
-	for (var i = this.sel_y.length - 1; i >= 0; i--) {
-		renderdots(this.sel_y[i]);
-	};
+	if(!this.renderBlocks){
+		for (var i = this.sel_y.length - 1; i >= 0; i--) {
+			renderdots(this.sel_y[i]);
+		};
+	}else{
+		var products_amount = _.countBy(this.data, "time");
+		binData();
+		renderRects();
+
+	}
+
+
+	function binData(){
+
+		// Bin heights uniformly together creating average for height interval
+		var ticks = yScale.ticks(50);
+		var binned_data = [];
+
+		// Create empty bins
+		for(var i=0;i<ticks.length;i++){
+			binned_data.push(false);
+		}
+
+		// Go through all data objects
+		for (var i=0; i<self.data.length; i++) {
+			var bin_pos = 0;
+			// Go through bins until finding the correct one
+			for(var p=0; p<ticks.length; p++){
+				if(ticks[p]>self.data[i].height){
+					bin_pos = (p-1);
+					break;
+				}
+			}
+			if(bin_pos>0){
+				// If bin is empty (false) fill it with array of current value
+				// We need also to consider the temporal element for binning
+				if(!binned_data[bin_pos]){
+					binned_data[bin_pos] = [{
+						min_height: ticks[bin_pos-1],
+						max_height: ticks[bin_pos],
+						val: self.data[i].val,
+						time: self.data[i].time
+					}];
+				}else{
+					// If bin is already full we need to find the correct object
+					// which has the same time to calculate and save the average
+					var integrated = false;
+					for(var o=0; o<binned_data[bin_pos].length; o++){
+						var obj = binned_data[bin_pos][o];
+						if(self.data[i].time.getTime() == obj.time.getTime()){
+							binned_data[bin_pos][o].val = (obj.val + self.data[i].val)/2;
+							integrated = true;
+							break;
+						}
+					}
+					// If the current time is not available in the bin collection
+					// add the object to the bin
+					if(!integrated){
+						binned_data[bin_pos].push({
+							min_height: ticks[bin_pos-1],
+							max_height: ticks[bin_pos],
+							val: self.data[i].val,
+							time: self.data[i].time
+						});
+					}
+					
+				}
+			}
+
+		}
+
+		self.data = _.filter(binned_data, function(o) { return o; });
+		self.data = _.flatten(self.data) ;
+
+	}
+
+	function rgbToHex(r, g, b) {
+	    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+	}
+
+	function renderRects(){
+		
+		var r_width = Math.round((self.width - self.margin.right - self.margin.left)/_.size(products_amount)/2);
+		//var r_height = Math.round((self.height - self.margin.bottom)/137);
+
+		var parameter = self.sel_y[0];
+		svg.selectAll(".datarectangle")
+			.data(self.data)
+			.enter().append("rect")
+			.attr("class", "area").attr("clip-path", "url(#clip)")
+			.attr("class", "datarectangle")
+			.attr("x",function(d) { 
+				var t = d[self.sel_x];
+				t.setUTCHours(0,0,0,0);
+				return xScale(t); 
+			})
+			.attr("y",function(d) { 
+				return yScale(d.max_height); 
+			})
+			.attr("width", function(d) { 
+				var t = d[self.sel_x];
+				t.setUTCHours(23,59,59,999);
+				var x_max = xScale(t); 
+				t.setUTCHours(0,0,0,0);
+				return (x_max-xScale(t));
+			})
+			.attr("height", function(d){
+				return (yScale(d.min_height)-yScale(d.max_height));
+			})
+
+			.style("fill", function(d) {
+				var c = self.plotter.getColor(d.val);
+				return rgbToHex(c[0], c[1], c[2]);
+			})
+			.style("stroke", "none")
+
+			.on("mouseover", function(d) {
+				d3.select(this).style("stroke", "black");
+
+			})  
+			.on("mouseout", function(d){
+				if(self.selectedpoint == null) 
+					d3.select(this).style("stroke", "none");
+				else if (self.selectedpoint !== this)
+					d3.select(this).style("stroke", "none");
+			})
+
+			.on("click", function(d) {
+
+				if (self.selectedpoint != null){
+					d3.select(this).style("stroke", "none");
+					self.selectedpoint = null;
+				}
+
+				self.openinfo(d);
+
+				self.selectedpoint = this;
+
+				var values = "";
+				for(var propName in d) {
+					propValue = d[propName]
+					if (propValue instanceof Date){
+						propValue = propValue.toISOString();
+					}
+					if(propName != "active"){
+						values = values + propName + ": " + propValue + "<br>";
+					}
+				}
+				values = '<br>'+values;
+
+				self.tooltip.transition()
+					.duration(100)
+					.style("display", "block");
+				self.tooltip.html(values)
+					.style("left", (d3.event.pageX + 10) + "px")
+					.style("top", (d3.event.pageY + 3) + "px");
+
+				// Add close button
+				var closeArea = self.tooltip.append('text')
+					.text('X')
+					.attr("style", "position:absolute; right:13px; top:4px; cursor:pointer;")
+					.attr("font-family", "sans-serif")
+					.attr("font-size", "20px");
+
+				closeArea.on("click", function(){
+					self.tooltip.transition()        
+					.duration(100)
+					.style("display", "none");
+					d3.select(self.selectedpoint).style("stroke", "none");
+					self.selectedpoint = null;
+					self.openinfo(null);
+				});
+			});
+
+			$(document).on("mousedown", function(e){
+				if (e.target.nodeName=="rect" && e.target.className!="AV-point-tooltip"){
+					if(self.selectedpoint){
+						self.tooltip.transition()        
+							.duration(100)      
+							.style("display", "none");
+						d3.select(self.selectedpoint).style("stroke", "none");
+						self.selectedpoint = null;
+						self.openinfo(null);
+					}
+				}
+			});
+	}
 
 	function renderdots(parameter){
 		svg.selectAll(".dot_"+parameter)
@@ -968,39 +1212,40 @@ scatterPlot.prototype.render = function(){
     }
 
 
-    // Add legend for all displayed combinations
+    // Add legend for all displayed combinations if not using render blocks attribute
 
-    var y_offset = (this.sel_y.length) * 20;
+	if (!this.renderBlocks) {
+		var y_offset = (this.sel_y.length) * 20;
 
-    for (var i = this.sel_y.length - 1; i >= 0; i--) {
-	
+		for (var i = this.sel_y.length - 1; i >= 0; i--) {
 
-	    // Add legend for available unique identifiers in loaded csv data
-		var legend = svg.selectAll(".legend_"+self.sel_y[i])
-			.data(this.identifiers)
-			.enter().append("g")
-			.attr("class", "legend_"+self.sel_y[i])
-			.attr("transform", function(d,n) { 
-				return "translate(0," + ((i*y_offset) + (n*20)) + ")";
-			});
+			// Add legend for available unique identifiers in loaded csv data
+			var legend = svg.selectAll(".legend_"+self.sel_y[i])
+				.data(this.identifiers)
+				.enter().append("g")
+				.attr("class", "legend_"+self.sel_y[i])
+				.attr("transform", function(d,n) { 
+					return "translate(0," + ((i*y_offset) + (n*20)) + ")";
+				});
 
-		// Add a rectangle with the corresponding color for the legend
-		legend.append("circle")
-			.attr("cx", width - 15)
-			.attr("cy", 9)
-			.attr("r", 4)
-			.style("fill", function(d) { return self.parameter_colors(self.sel_y[i]); })
-			.style("stroke", function(d) { return self.colors(d); });
+			// Add a rectangle with the corresponding color for the legend
+			legend.append("circle")
+				.attr("cx", width - 15)
+				.attr("cy", 9)
+				.attr("r", 4)
+				.style("fill", function(d) { return self.parameter_colors(self.sel_y[i]); })
+				.style("stroke", function(d) { return self.colors(d); });
 
-		// Add identifier as text to label element
-		legend.append("text")
-			.attr("x", width - 24)
-			.attr("y", 9)
-			.attr("dy", ".35em")
-			.style("text-anchor", "end")
-			.text(function(d) {return d + " - " + self.sel_y[i]; });
-
+			// Add identifier as text to label element
+			legend.append("text")
+				.attr("x", width - 24)
+				.attr("y", 9)
+				.attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function(d) {return d + " - " + self.sel_y[i]; });
 		};
+	}
+
 
 	svg.selectAll('text').style("font", "400 13px Arial");
     svg.selectAll('text').style("fill", "black");
@@ -1090,7 +1335,36 @@ scatterPlot.prototype.render = function(){
 				.attr("cx", function(d) {return xScale(d[self.sel_x]);})
 				.attr("cy", function(d) {return yScale(d[self.sel_y[i]]);});
 	    };
-	    
+
+		svg.selectAll(".datarectangle")
+			.attr("x",function(d) { 
+				var t = d[self.sel_x];
+				t.setUTCHours(0,0,0,0);
+				return xScale(t); 
+			})
+			.attr("y",function(d) { 
+				return yScale(d.max_height); 
+			})
+			.attr("width", function(d) { 
+				var t = d[self.sel_x];
+				t.setUTCHours(23,59,59,999);
+				var x_max = xScale(t); 
+				t.setUTCHours(0,0,0,0);
+				return (x_max-xScale(t));
+			})
+			.attr("height", function(d){
+				return (yScale(d.min_height)-yScale(d.max_height));
+			});
+
+		colorAxisScale.range([(height-self.margin.bottom), 0]);
+
+		svg.selectAll(".color.axis")
+			.attr("transform", "translate(" + (width+40) + " ,0)")
+			.call(colorAxis);
+
+		svg.selectAll(".colorscaleimage")
+			.attr("width",  height-self.margin.bottom)
+			.attr("transform", "translate(" + (width+17) + " ,"+(height-self.margin.bottom)+") rotate(270)");
 
 	}
 
@@ -1100,7 +1374,9 @@ scatterPlot.prototype.render = function(){
 		.attr("class", "zoom x box")
 		.attr("width", width)
 		.attr("height", this.margin.bottom)
-		.attr("fill", "blue")
+		//.attr("fill", "blue")
+		.attr("stroke", "none")
+		.attr("fill", "transparent")
 		.attr("transform", "translate(" + 0 + "," + (height - this.margin.bottom) + ")")
 		.style("visibility", "hidden")
 		.attr("pointer-events", "all")
@@ -1110,8 +1386,10 @@ scatterPlot.prototype.render = function(){
 		.attr("class", "zoom y box")
 		.attr("width", this.margin.left)
 		.attr("height", height - this.margin.bottom)
+		.attr("stroke", "none")
+		.attr("fill", "transparent")
 		.attr("transform", "translate(" + -this.margin.left + "," + 0 + ")")
-		.attr("fill", "red")
+		//.attr("fill", "red")
 		.style("visibility", "hidden")
 		.attr("pointer-events", "all")
 		.call(yzoom);
