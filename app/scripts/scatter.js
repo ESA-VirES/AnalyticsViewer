@@ -50,12 +50,15 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.residuals = false;
 
 	this.renderBlocks = defaultFor(args.renderBlocks, false);
-	this.dataRange = defaultFor(args.dataRange, false);
 
-	this.plotter = new plotty.plot({
-		canvas: $('<canvas>')[0],
-		domain: this.dataRange
-	});
+	if (this.renderBlocks){
+		this.daily_products = true;
+		this.dataRange = defaultFor(args.dataRange, [0,1]);
+		this.plotter = new plotty.plot({
+			canvas: $('<canvas>')[0],
+			domain: this.dataRange
+		});
+	}
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
@@ -874,7 +877,7 @@ scatterPlot.prototype.render = function(){
 
 
 
-	if(this.dataRange){
+	if(self.dataRange){
 
 		var colorAxisScale = d3.scale.linear();
 		colorAxisScale.domain(this.dataRange);
@@ -923,7 +926,7 @@ scatterPlot.prototype.render = function(){
 	// Create points of scatter plot, if multiple parameters are selected for Y axis
 	// we need to iterate in order to create a full set of points for all
 
-	if(!this.renderBlocks){
+	if(!self.renderBlocks){
 		for (var i = this.sel_y.length - 1; i >= 0; i--) {
 			renderdots(this.sel_y[i]);
 		};
@@ -938,7 +941,7 @@ scatterPlot.prototype.render = function(){
 	function binData(){
 
 		// Bin heights uniformly together creating average for height interval
-		var ticks = yScale.ticks(50);
+		var ticks = yScale.ticks(70);
 		var binned_data = [];
 
 		// Create empty bins
@@ -964,7 +967,8 @@ scatterPlot.prototype.render = function(){
 						min_height: ticks[bin_pos-1],
 						max_height: ticks[bin_pos],
 						val: self.data[i].val,
-						time: self.data[i].time
+						starttime: self.data[i].starttime,
+						endtime: self.data[i].endtime
 					}];
 				}else{
 					// If bin is already full we need to find the correct object
@@ -972,7 +976,19 @@ scatterPlot.prototype.render = function(){
 					var integrated = false;
 					for(var o=0; o<binned_data[bin_pos].length; o++){
 						var obj = binned_data[bin_pos][o];
-						if(self.data[i].time.getTime() == obj.time.getTime()){
+						if(
+							self.data[i].starttime.getYear() == obj.starttime.getYear() &&
+							self.data[i].starttime.getMonth() == obj.starttime.getMonth() &&
+							self.data[i].starttime.getDate() == obj.starttime.getDate() &&
+							(
+								self.data[i].starttime.getHours() != obj.starttime.getHours() ||
+								self.data[i].starttime.getMinutes() != obj.starttime.getMinutes() ||
+								self.data[i].starttime.getSeconds() != obj.starttime.getSeconds()
+							)
+						){
+							self.daily_products = false;
+						}
+						if(self.data[i].starttime.getTime() == obj.starttime.getTime()){
 							binned_data[bin_pos][o].val = (obj.val + self.data[i].val)/2;
 							integrated = true;
 							break;
@@ -985,7 +1001,8 @@ scatterPlot.prototype.render = function(){
 							min_height: ticks[bin_pos-1],
 							max_height: ticks[bin_pos],
 							val: self.data[i].val,
-							time: self.data[i].time
+							starttime: self.data[i].starttime,
+							endtime: self.data[i].endtime
 						});
 					}
 					
@@ -1015,19 +1032,27 @@ scatterPlot.prototype.render = function(){
 			.attr("class", "area").attr("clip-path", "url(#clip)")
 			.attr("class", "datarectangle")
 			.attr("x",function(d) { 
-				var t = d[self.sel_x];
-				t.setUTCHours(0,0,0,0);
-				return xScale(t); 
+				if(self.daily_products){
+					var t = d.starttime;
+					t.setUTCHours(0,0,0,0);
+					return xScale(t); 
+				}else{
+					return xScale(d.starttime); 
+				}
 			})
 			.attr("y",function(d) { 
 				return yScale(d.max_height); 
 			})
 			.attr("width", function(d) { 
-				var t = d[self.sel_x];
-				t.setUTCHours(23,59,59,999);
-				var x_max = xScale(t); 
-				t.setUTCHours(0,0,0,0);
-				return (x_max-xScale(t));
+				if(self.daily_products){
+					var t = d.starttime;
+					t.setUTCHours(23,59,59,999);
+					var x_max = xScale(t); 
+					t.setUTCHours(0,0,0,0);
+					return (x_max-xScale(t));
+				}else{
+					return (xScale(d.endtime)-xScale(d.starttime));
+				}
 			})
 			.attr("height", function(d){
 				return (yScale(d.min_height)-yScale(d.max_height));
@@ -1214,7 +1239,7 @@ scatterPlot.prototype.render = function(){
 
     // Add legend for all displayed combinations if not using render blocks attribute
 
-	if (!this.renderBlocks) {
+	if (!self.renderBlocks) {
 		var y_offset = (this.sel_y.length) * 20;
 
 		for (var i = this.sel_y.length - 1; i >= 0; i--) {
@@ -1336,35 +1361,46 @@ scatterPlot.prototype.render = function(){
 				.attr("cy", function(d) {return yScale(d[self.sel_y[i]]);});
 	    };
 
-		svg.selectAll(".datarectangle")
-			.attr("x",function(d) { 
-				var t = d[self.sel_x];
-				t.setUTCHours(0,0,0,0);
-				return xScale(t); 
-			})
-			.attr("y",function(d) { 
-				return yScale(d.max_height); 
-			})
-			.attr("width", function(d) { 
-				var t = d[self.sel_x];
-				t.setUTCHours(23,59,59,999);
-				var x_max = xScale(t); 
-				t.setUTCHours(0,0,0,0);
-				return (x_max-xScale(t));
-			})
-			.attr("height", function(d){
-				return (yScale(d.min_height)-yScale(d.max_height));
-			});
+	    if (self.renderBlocks){
 
-		colorAxisScale.range([(height-self.margin.bottom), 0]);
+			svg.selectAll(".datarectangle")
+				.attr("x",function(d) { 
+					if(self.daily_products){
+						var t = d.starttime;
+						t.setUTCHours(0,0,0,0);
+						return xScale(t); 
+					}else{
+						return xScale(d.starttime); 
+					}
+				})
+				.attr("y",function(d) { 
+					return yScale(d.max_height); 
+				})
+				.attr("width", function(d) { 
+					if(self.daily_products){
+						var t = d.starttime;
+						t.setUTCHours(23,59,59,999);
+						var x_max = xScale(t); 
+						t.setUTCHours(0,0,0,0);
+						return (x_max-xScale(t));
+					}else{
+						return (xScale(d.endtime)-xScale(d.starttime));
+					}
+				})
+				.attr("height", function(d){
+					return (yScale(d.min_height)-yScale(d.max_height));
+				});
 
-		svg.selectAll(".color.axis")
-			.attr("transform", "translate(" + (width+40) + " ,0)")
-			.call(colorAxis);
+			colorAxisScale.range([(height-self.margin.bottom), 0]);
 
-		svg.selectAll(".colorscaleimage")
-			.attr("width",  height-self.margin.bottom)
-			.attr("transform", "translate(" + (width+17) + " ,"+(height-self.margin.bottom)+") rotate(270)");
+			svg.selectAll(".color.axis")
+				.attr("transform", "translate(" + (width+40) + " ,0)")
+				.call(colorAxis);
+
+			svg.selectAll(".colorscaleimage")
+				.attr("width",  height-self.margin.bottom)
+				.attr("transform", "translate(" + (width+17) + " ,"+(height-self.margin.bottom)+") rotate(270)");
+		}
 
 	}
 
