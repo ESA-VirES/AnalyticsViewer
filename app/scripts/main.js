@@ -31,9 +31,13 @@ var plotdata =
 '{1.4907;0.4656;-1.6636},{0.1128;0.0556;0.1199},0,1,23125.9352,2014-10-01 00:00:20,{0.003550959;-0.008913144;0.999938526;-0.005557922},-6.0138989,{17798.1246;-3347.522;-14382.0979},0,1,6893523.93,0,{0.5073;0.4957;0.5066},-6.5083574,0.0774,{-17828.5542;4064.0147;14158.048},0.0,-0.1679,0.0,1.2915';
 
 
-var parsedData = [{"id":"ALARO_Temperature_surface","val":281.040283203125,"height":new Date("2013-05-15T05:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.82177734375,"height":new Date("2013-05-15T08:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.553466796875,"height":new Date("2013-05-15T07:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.425537109375,"height":new Date("2013-05-15T06:00:00.000Z")}];
+//var parsedData = [{"id":"ALARO_Temperature_surface","val":281.040283203125,"height":new Date("2013-05-15T05:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.82177734375,"height":new Date("2013-05-15T08:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.553466796875,"height":new Date("2013-05-15T07:00:00.000Z")},{"id":"ALARO_Temperature_surface","val":280.425537109375,"height":new Date("2013-05-15T06:00:00.000Z")}];
 
-
+var parsedData = [{"id":"11","start_date":"2014-09-17T00:00:00.000Z","end_date":"2014-09-17T23:59:59.000Z","average_bias":0.005499905888417417,"rms":0.5529881178421573,"min_diff":-4.2384238,"max_diff":2.3284574},{"id":"","start_date":"2014-09-18T00:00:00.000Z","end_date":"2014-09-18T23:59:59.000Z","average_bias":-0.21484811075078616,"rms":0.8939476185620187,"min_diff":-6.0359058,"max_diff":3.7749319},{"id":"","start_date":"2014-09-19T00:00:00.000Z","end_date":"2014-09-19T23:59:59.000Z","average_bias":-0.4772903209473864,"rms":2.449178584698528,"min_diff":-10.133253,"max_diff":66.890747},{"id":"","start_date":"2014-09-20T00:00:00.000Z","end_date":"2014-09-20T23:59:59.000Z","average_bias":-0.14515651886189934,"rms":0.7862754033848532,"min_diff":-5.1294804,"max_diff":3.9033997}];
+for (var i = 0; i < parsedData.length; i++) {
+	parsedData[i]['start_date']= new Date(parsedData[i]['start_date']);
+	parsedData[i]['end_date']= new Date(parsedData[i]['end_date']);
+}
 /*var colors = d3.scale.ordinal()
 	.domain(["MOD07_Retrived_Temperature_Profile","AROME_Temperature_isobaric_201305150000"])
 	.range(["#1f77b4", "#ff7f0e"]);*/
@@ -45,14 +49,14 @@ var args = {
 	dateformat: "%Y-%m-%d",
 	/*selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],*/
-	selection_x: "height",
-	selection_y: ["val"],
+	selection_x: "start_date",
+	selection_y: ["average_bias", "rms", "min_diff", "max_diff"],
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
 	//url: "http://localhost:8000/vires00/ows?service=WPS&version=1.0.0&request=Execute&identifier=retrieve_data&DataInputs=collection_ids=SW_OPER_MAGB_LR_1B_20141001T000000_20141001T235959_0301_MDR_MAG_LR&rawdataoutput=output"
-	url: 'data/swarmdata2.csv'
+	//url: 'data/swarmdata2.csv'
 	//data: plotdata,
 	//colors: colors
-	//,parsedData: parsedData,
+	parsedData: parsedData
 	//showDropDownSelection: false
 };
 

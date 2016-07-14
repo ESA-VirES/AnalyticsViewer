@@ -48,6 +48,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.width = null;
 	this.selectedpoint = null;
 	this.residuals = false;
+	this.lineConnections = defaultFor(args.lineConnections, false);
 
 	this.showDropDownSelection = defaultFor(args.showDropDownSelection, true);;
 
@@ -865,6 +866,33 @@ scatterPlot.prototype.render = function(){
 
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
 		renderdots(this.sel_y[i]);
+		renderlines(this.sel_y[i]);
+	};
+
+	function renderlines(parameter){
+		if(this.lineConnections){
+			// Create line function necessary for line rendering
+			var line_func = d3.svg.line()
+				.x(function(d) { 
+					return xScale(d[self.sel_x]); 
+				})
+				.y(function(d) { 
+					return yScale(d[parameter]); 
+				});
+
+			svg.selectAll(".line_"+parameter).remove();
+
+			svg.append("path")
+				.attr("class", "area").attr("clip-path", "url(#clip)")
+				.attr("class", "line_"+parameter)
+				.attr("d", line_func(self.data))
+				.style("fill", "none")
+				.style("stroke", function(d) { 
+					return self.parameter_colors(parameter);
+				});
+		}
+
+
 	};
 
 	function renderdots(parameter){
@@ -873,9 +901,9 @@ scatterPlot.prototype.render = function(){
 			.enter().append("circle")
 			.attr("class", "area").attr("clip-path", "url(#clip)")
 			.attr("class", "dot_"+parameter)
-			.style("display", function(d) {
+			/*.style("display", function(d) {
 				return !d["active"] ? "none" : null;
-			})
+			})*/
 			.attr("r", 3.5)
 
 			.attr("cx", function(d) { 
@@ -885,8 +913,27 @@ scatterPlot.prototype.render = function(){
 			.attr("cy", function(d) { 
 				return yScale(d[parameter]); 
 			 })
-			.style("fill", function(d) { return self.parameter_colors(parameter); })
-			.style("stroke", function(d) { return self.colors(d.id); })
+			.style("fill", function(d) { 
+				if (d["active"]){
+					return self.parameter_colors(parameter);
+				}else{
+					return 'rgba(50,50,50)';
+				}
+			})
+			.style("fill-opacity", function(d) { 
+				if (d["active"]){
+					return 1;
+				}else{
+					return 0.15;
+				}
+			})
+			.style("stroke", function(d) {
+				if (d["active"]){
+					return self.colors(d.id); 
+				}else{
+					return 'rgba(50,50,50)';
+				}
+			})
 
 			.on("mouseover", function(d) {
 				$(this).attr("r",7);
@@ -981,7 +1028,7 @@ scatterPlot.prototype.render = function(){
 			.enter().append("g")
 			.attr("class", "legend_"+self.sel_y[i])
 			.attr("transform", function(d,n) { 
-				return "translate(0," + ((i*y_offset) + (n*20)) + ")";
+				return "translate(0," + ((i*20) + (n*y_offset)) + ")";
 			});
 
 		// Add a rectangle with the corresponding color for the legend
@@ -1090,6 +1137,10 @@ scatterPlot.prototype.render = function(){
 				.attr("cx", function(d) {return xScale(d[self.sel_x]);})
 				.attr("cy", function(d) {return yScale(d[self.sel_y[i]]);});
 	    };
+
+	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
+			renderlines(self.sel_y[i]);
+		};
 	    
 
 	}
