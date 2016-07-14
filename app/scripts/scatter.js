@@ -518,9 +518,9 @@ scatterPlot.prototype.render = function(){
 		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
 		    [":%S", function(d) { return d.getUTCSeconds(); }],
 		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
-		    ["%H:%M", function(d) { return d.getHours(); }],
-		    ["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
-		    ["%b %d", function(d) { return d.getUTCDate() != 1; }],
+		    ["%H:%M", function(d) { return d.getUTCHours(); }],
+		    //["%d %m", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
+		    ["%d.%m.%Y", function(d) { return d.getUTCDate() != 1; }],
 		    ["%B", function(d) { return d.getUTCMonth(); }],
 		    ["%Y", function() { return true; }]
 		 ]);
@@ -870,7 +870,7 @@ scatterPlot.prototype.render = function(){
 	};
 
 	function renderlines(parameter){
-		if(this.lineConnections){
+		if(self.lineConnections){
 			// Create line function necessary for line rendering
 			var line_func = d3.svg.line()
 				.x(function(d) { 

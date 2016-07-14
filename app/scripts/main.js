@@ -56,7 +56,8 @@ var args = {
 	//url: 'data/swarmdata2.csv'
 	//data: plotdata,
 	//colors: colors
-	parsedData: parsedData
+	parsedData: parsedData,
+	lineConnections: true
 	//showDropDownSelection: false
 };
 
