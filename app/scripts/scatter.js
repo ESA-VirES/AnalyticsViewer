@@ -856,8 +856,8 @@ scatterPlot.prototype.render = function(){
 		.attr("height", height-self.margin.bottom)
 		.attr("class", "zoom xy box")
 		.style("visibility", "hidden")
-		.attr("fill", "yellow")
-		.attr("stroke", "none")
+		.attr("fill", "none")
+		//.attr("stroke", "none")
 		.attr("pointer-events", "all")
 		.call(xyzoom);
 		
@@ -1151,7 +1151,8 @@ scatterPlot.prototype.render = function(){
 		.attr("class", "zoom x box")
 		.attr("width", width)
 		.attr("height", this.margin.bottom)
-		.attr("fill", "blue")
+		.attr("fill", "none")
+		.attr("stroke", "none")
 		.attr("transform", "translate(" + 0 + "," + (height - this.margin.bottom) + ")")
 		.style("visibility", "hidden")
 		.attr("pointer-events", "all")
@@ -1162,7 +1163,8 @@ scatterPlot.prototype.render = function(){
 		.attr("width", this.margin.left)
 		.attr("height", height - this.margin.bottom)
 		.attr("transform", "translate(" + -this.margin.left + "," + 0 + ")")
-		.attr("fill", "red")
+		.attr("fill", "none")
+		.attr("stroke", "none")
 		.style("visibility", "hidden")
 		.attr("pointer-events", "all")
 		.call(yzoom);
