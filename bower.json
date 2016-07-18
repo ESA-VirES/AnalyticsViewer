@@ -9,7 +9,8 @@
     "underscore": "~1.5.2",
     "FileSaver.js": "eligrey/FileSaver.js",
     "canvas-toBlob.js": "eligrey/canvas-toBlob.js",
-    "Blob.js": "eligrey/Blob.js"
+    "Blob.js": "eligrey/Blob.js",
+    "plotty": "santilland/plotty#^0.1.2"
   },
   "ignore": [
     "**/.*",
