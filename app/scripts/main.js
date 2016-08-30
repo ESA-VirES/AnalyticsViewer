@@ -27,7 +27,7 @@ var args = {
 */
 
 //Use case: normal scatterplot based on unparsed data
-/*
+
 var plotdata =
 'dB_AOCS,dB_other,Flags_B,Flags_F,F,Timestamp,q_NEC_CRF,Longitude,B_NEC,Flags_q,Flags_Platform,Radius,SyncStatus,B_error,Latitude,F_error,B_VFM,dF_AOCS,dF_other,ASM_Freq_Dev,Att_error\n'+
 '{1.6053;0.7096;-1.5898},{0.1055;0.0561;0.1214},0,1,23200.8318,2014-10-01 00:00:00,{0.003582121;-0.010043989;0.999927588;-0.005577191},-5.9801832,{18442.4187;-3272.5702;-13691.5932},0,1,6893330.57,0,{0.509;0.4973;0.5051},-5.2450082,0.0785,{-17296.3175;3979.4081;14943.0237},0.0,0.0,0.0,1.1103\n'+
@@ -36,7 +36,8 @@ var plotdata =
 var args = {
 	scatterEl: "#scatter",
 	histoEl: "#histograms",
-	data: plotdata,
+	//data: plotdata,
+	url: "data/swarmdata.csv",
 	selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],
 	selection_x: "Latitude",
@@ -44,12 +45,12 @@ var args = {
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
 
 };
-*/
+
 
 
 // Use case: Line rendering between points
 
-var parsedData = [{"id":"11","start_date":"2014-09-17T00:00:00.000Z","end_date":"2014-09-17T23:59:59.000Z","average_bias":0.005499905888417417,"rms":0.5529881178421573,"min_diff":-4.2384238,"max_diff":2.3284574},{"id":"","start_date":"2014-09-18T00:00:00.000Z","end_date":"2014-09-18T23:59:59.000Z","average_bias":-0.21484811075078616,"rms":0.8939476185620187,"min_diff":-6.0359058,"max_diff":3.7749319},{"id":"","start_date":"2014-09-19T00:00:00.000Z","end_date":"2014-09-19T23:59:59.000Z","average_bias":-0.4772903209473864,"rms":2.449178584698528,"min_diff":-10.133253,"max_diff":66.890747},{"id":"","start_date":"2014-09-20T00:00:00.000Z","end_date":"2014-09-20T23:59:59.000Z","average_bias":-0.14515651886189934,"rms":0.7862754033848532,"min_diff":-5.1294804,"max_diff":3.9033997}];
+/*var parsedData = [{"id":"11","start_date":"2014-09-17T00:00:00.000Z","end_date":"2014-09-17T23:59:59.000Z","average_bias":0.005499905888417417,"rms":0.5529881178421573,"min_diff":-4.2384238,"max_diff":2.3284574},{"id":"","start_date":"2014-09-18T00:00:00.000Z","end_date":"2014-09-18T23:59:59.000Z","average_bias":-0.21484811075078616,"rms":0.8939476185620187,"min_diff":-6.0359058,"max_diff":3.7749319},{"id":"","start_date":"2014-09-19T00:00:00.000Z","end_date":"2014-09-19T23:59:59.000Z","average_bias":-0.4772903209473864,"rms":2.449178584698528,"min_diff":-10.133253,"max_diff":66.890747},{"id":"","start_date":"2014-09-20T00:00:00.000Z","end_date":"2014-09-20T23:59:59.000Z","average_bias":-0.14515651886189934,"rms":0.7862754033848532,"min_diff":-5.1294804,"max_diff":3.9033997}];
 for (var i = 0; i < parsedData.length; i++) {
 	parsedData[i]['start_date']= new Date(parsedData[i]['start_date']);
 	parsedData[i]['end_date']= new Date(parsedData[i]['end_date']);
@@ -67,7 +68,7 @@ var args = {
 		"average_bias": "bla",
 		"rms": "blue"
 	}
-};
+};*/
 
 
 var sp = null;

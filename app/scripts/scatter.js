@@ -20,6 +20,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	);
 
 	this.uom_set = defaultFor(args.uom_set, {});
+	this.filters_hidden = false;
 	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.callback = callback;
@@ -1199,7 +1200,7 @@ scatterPlot.prototype.render = function(){
 				if (d["active"]){
 					return self.parameter_colors(parameter);
 				}else{
-					return 'rgba(50,50,50)';
+					return 'rgba(50,50,50,0.3)';
 				}
 			})
 			.style("fill-opacity", function(d) { 
@@ -1213,9 +1214,10 @@ scatterPlot.prototype.render = function(){
 				if (d["active"]){
 					return self.colors(d.id); 
 				}else{
-					return 'rgba(50,50,50)';
+					return 'rgba(50,50,50,0.3)';
 				}
 			})
+			.style("stroke-width", 1)
 
 			.on("mouseover", function(d) {
 				$(this).attr("r",7);
@@ -1546,6 +1548,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// Do some cleanup (especially on objects with events)
 		d3.select(self.histoEl).selectAll(".brush").remove();
 		d3.select("#reset_filters").remove();
+		d3.select("#toggle_filters").remove();
 
 		this.parameters.forEach(function(para) {
 			var histosvg = d3.select(self.histoEl).select('svg');
@@ -1575,285 +1578,302 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				self.parameters.splice(index, 1);
 			}
 		});
-
-
-		var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right,
-			height = $(this.histoEl).height() - this.histoMargin.top - this.histoMargin.bottom;
-
-		this.x_hist = {};
-		this.hist_data = {};
-		this.y = {};
-		this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
-		this.axis = d3.svg.axis().orient("left");
-
-		var line = d3.svg.line(),
-		    foreground;
-
-		// User general formatting for ticks on Axis
-		this.axis.tickFormat(d3.format(".3g"));
-
-		var svg = d3.select(this.histoEl).append("svg")
-			.attr("class", "parallels")
-		    .attr("width", $(this.histoEl).width())
-		    .attr("height", $(this.histoEl).height())
-		  	.append("g")
-		  	.attr("display", "block")
-		  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
+		var buttonlabel = 'Hide filters';
+		if(self.filters_hidden){
+			buttonlabel = 'Show filters';
+		}
 
 		d3.select(this.histoEl).append("button")
-	        .attr("type", "button")
-	        .attr("class", "btn btn-success")
-	        .attr("disabled", true)
-	        .attr("id", "reset_filters")
-	        .attr("style", "position: absolute; left: 62px; top:-30px;")
-	        .text("Reset Filters");
-
-	    if (self.active_brushes.length>0){
-			// Activate clear filter button
-			d3.select("#reset_filters").attr('disabled', null);
-		}
-
-		d3.select("#reset_filters").on("click", function(){
-			self.active_brushes = [];
-			self.filterset({});
-
-			_.each(self.data, function(row){
-				row["active"] = true;
-			}); 
-
-			self.parallelsPlot();
-			self.render();
-		});
-
-		// Handles a brush event, toggling the display of foreground lines.
-		function brushend(parameter) {
-			
-			self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
-			self.brush_extents = {};
-			self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
-			var filter = {};
-
-			var active;
-			
-			_.each(self.data, function(row){
-				active = true;
-				self.active_brushes.forEach (function(p) {
-					filter[p] = self.brush_extents[p];
-			    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
-			    		active = false;
-			    	}
-		    	});
-				row["active"] = active ? 1 : 0;
-			}); 
-
-			self.filterset(filter);
-			
-
-			self.render();
-			self.parallelsPlot();
-
-		}
+			.attr("type", "button")
+			.attr("class", "btn btn-success")
+			.attr("id", "toggle_filters")
+			.attr("style", "position: absolute; left: 58px; top:-30px;")
+			.html(buttonlabel);
 
 
-	    var self = this;
-	    self.svg = svg;
-		// Create a scale and brush for each trait.
-		self.parameters.forEach(function(d) {
+		if(!self.filters_hidden){
 
-			if(self.col_ordinal.indexOf(d) != -1){
-				self.y[d] = d3.scale.ordinal()
-					.rangePoints([height, 0])
-			        .domain(self.data.map(function(data) { 
-						return data[d]; 
-					}));
+			var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right,
+				height = $(this.histoEl).height() - this.histoMargin.top - this.histoMargin.bottom;
 
-			}else{
-			    self.y[d] = d3.scale.linear()
-			        .range([height, 0])
-			        .domain(d3.extent(self.data, function(data) { 
-			        	return data[d];
-					})).nice();
-		    }
+			this.x_hist = {};
+			this.hist_data = {};
+			this.y = {};
+			this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
+			this.axis = d3.svg.axis().orient("left");
 
-		    self.y[d].brush = d3.svg.brush()
-		        .y(self.y[d])
-		        .on("brushend", brushend)
-		        .on("brush", function(param){
+			var line = d3.svg.line(),
+			    foreground;
 
-		        	var brush_top = self.svg.selectAll('.trait.'+param).selectAll('.resize.n');
-		        	var brush_bottom = self.svg.selectAll('.trait.'+param).selectAll('.resize.s');
-		        	var extent = self.y[param].brush.extent();
-		        	var format = d3.format('.02f');
+			// User general formatting for ticks on Axis
+			this.axis.tickFormat(d3.format(".3g"));
 
-		        	brush_top.select("text").remove();
-		        	brush_bottom.select("text").remove();
+			var svg = d3.select(this.histoEl).append("svg")
+				.attr("class", "parallels")
+			    .attr("width", $(this.histoEl).width())
+			    .attr("height", $(this.histoEl).height())
+			  	.append("g")
+			  	.attr("display", "block")
+			  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
 
-		        	brush_top.append("text")
-		               .text(format(extent[1]))
-		               .style("transform", "translate(15px,0px)");
-		            brush_bottom.append("text")
-		               .text(format(extent[0]))
-		               .style("transform", "translate(15px,0px)");
+			d3.select(this.histoEl).append("button")
+		        .attr("type", "button")
+		        .attr("class", "btn btn-success")
+		        .attr("disabled", true)
+		        .attr("id", "reset_filters")
+		        .attr("style", "position: absolute; left: 158px; top:-30px;")
+		        .text("Reset Filters");
 
 
-		        });
+		    if (self.active_brushes.length>0){
+				// Activate clear filter button
+				d3.select("#reset_filters").attr('disabled', null);
+			}
+
+			d3.select("#reset_filters").on("click", function(){
+				self.active_brushes = [];
+				self.filterset({});
+
+				_.each(self.data, function(row){
+					row["active"] = true;
+				}); 
+
+				self.parallelsPlot();
+				self.render();
+			});
+
+			// Handles a brush event, toggling the display of foreground lines.
+			function brushend(parameter) {
+				
+				self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
+				self.brush_extents = {};
+				self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
+				var filter = {};
+
+				var active;
+				
+				_.each(self.data, function(row){
+					active = true;
+					self.active_brushes.forEach (function(p) {
+						filter[p] = self.brush_extents[p];
+				    	if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
+				    		active = false;
+				    	}
+			    	});
+					row["active"] = active ? 1 : 0;
+				}); 
+
+				self.filterset(filter);
+				
+
+				self.render();
+				self.parallelsPlot();
+
+			}
 
 
-		    var transformed_data = [];
-		    _.each(self.data, function(row){
-		    	if (row["active"])
-	    			transformed_data.push(row[d]);
-	    	});
+		    var self = this;
+		    self.svg = svg;
+			// Create a scale and brush for each trait.
+			self.parameters.forEach(function(d) {
 
-
-		    // Generate a histogram using twenty uniformly-spaced bins.
-		    if(self.col_ordinal.indexOf(d) != -1){
-		    	self.hist_data[d] = d3.layout.histogram()
-		    		//.bins(self.y[d])
-					(transformed_data.map(function(data) { 
+				if(self.col_ordinal.indexOf(d) != -1){
+					self.y[d] = d3.scale.ordinal()
+						.rangePoints([height, 0])
+				        .domain(self.data.map(function(data) { 
 							return data[d]; 
-						})
-					);
-		    }else{
+						}));
 
-				self.hist_data[d] = d3.layout.histogram()
-				    .bins(self.y[d].ticks(60))
-				    //.bins(self.y[d].ticks())
-				    (transformed_data);
-				    //(values);
-			}
-			transformed_data = null;
-
-			self.x_hist[d] = d3.scale.linear()
-			    .domain([0, d3.max(self.hist_data[d], function(data) { 
-			    	return data.length;
-			    })])
-			    .range([0, 40]);
-		});
-
-		// If there were active brushes before re-rendering set the brush extents again
-		var filter_to_remove = [];
-		self.active_brushes.forEach (function(p) {
-			if ( self.y.hasOwnProperty(p) ) {
-			    // Re-set brush
-			    self.y[p].brush.extent(self.brush_extents[p]);
-			}else{
-				// Add to remove list
-				filter_to_remove.push(p);
-			}
-		});
-		
-		// Remove unnecessary filters
-		for (var i = filter_to_remove.length - 1; i >= 0; i--) {
-			var index = self.active_brushes.indexOf(filter_to_remove[i]);
-			if (index > -1) {
-				self.active_brushes.splice(index, 1);
-			}
-		};
-
-		if (filter_to_remove.length>0){
-			var filter = {};
-			self.active_brushes.forEach (function(p) {
-				filter[p] = self.brush_extents[p];
-	    	});
-			self.filterset(filter);
-		}
-			
-
-
-		self.parameters.forEach(function(para) {
-
-			var bar = svg.selectAll("." + para)
-			    .data(self.hist_data[para])
-			  	.enter().append("g")
-			    .attr("class", "bar "+para)
-			    .attr("transform", function(d) { 
-			    	var height_modifier = self.y[para](d.x) - height/self.hist_data[para].length;
-			    	if(!height_modifier){
-			    		height_modifier = 0;
-			    	}
-			    	return "translate(" + self.x(para) + "," + height_modifier + ")";
-			    });
-
-			bar.append("rect")
-			    .attr("height", 
-			    	height/self.hist_data[para].length - 1
-			    )
-			    .attr("width", function(d) {
-			    	return self.x_hist[para](d.y);
-				})
-				.style("fill", "#1F77B4");
-
-		});
-
-		//var colors = d3.scale.category10().domain(uniqueArray);
-
-		// Add a group element for each trait.
-		var g = svg.selectAll(".trait")
-		    .data(self.parameters)
-		    .enter().append("svg:g")
-		    //.attr("class", "trait")
-		    .attr("class", function(d) { return "trait " + d; })
-		    .attr("transform", function(d) { 
-		    	return "translate(" + self.x(d) + ")"; 
-		    });
-			  
-		// Add an axis and title.
-		g.append("svg:g")
-		    .attr("class", "axis")
-		    .each(function(d) { 
-		    	d3.select(this).call(self.axis.scale(self.y[d]));
-		    })
-		    .append("svg:text")
-		    .attr("text-anchor", "middle")
-		    .attr("y", -15)
-		    .html(function (d) { 
-				// Renaming of keys introducing subscript
-				var newkey = "";
-				var parts = d.split("_");
-				if (parts.length>1){
-					newkey = "<tspan>"+parts[0]+"</tspan>";
-					for (var i=1; i<parts.length; i++){
-						var modifier = "";
-						if(i==1)
-							modifier = ' dy="5"';
-						newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
-					}
 				}else{
-					newkey = d;
+				    self.y[d] = d3.scale.linear()
+				        .range([height, 0])
+				        .domain(d3.extent(self.data, function(data) { 
+				        	return data[d];
+						})).nice();
+			    }
+
+			    self.y[d].brush = d3.svg.brush()
+			        .y(self.y[d])
+			        .on("brushend", brushend)
+			        .on("brush", function(param){
+
+			        	var brush_top = self.svg.selectAll('.trait.'+param).selectAll('.resize.n');
+			        	var brush_bottom = self.svg.selectAll('.trait.'+param).selectAll('.resize.s');
+			        	var extent = self.y[param].brush.extent();
+			        	var format = d3.format('.02f');
+
+			        	brush_top.select("text").remove();
+			        	brush_bottom.select("text").remove();
+
+			        	brush_top.append("text")
+			               .text(format(extent[1]))
+			               .style("transform", "translate(15px,0px)");
+			            brush_bottom.append("text")
+			               .text(format(extent[0]))
+			               .style("transform", "translate(15px,0px)");
+
+
+			        });
+
+
+			    var transformed_data = [];
+			    _.each(self.data, function(row){
+			    	if (row["active"])
+		    			transformed_data.push(row[d]);
+		    	});
+
+
+			    // Generate a histogram using twenty uniformly-spaced bins.
+			    if(self.col_ordinal.indexOf(d) != -1){
+			    	self.hist_data[d] = d3.layout.histogram()
+			    		//.bins(self.y[d])
+						(transformed_data.map(function(data) { 
+								return data[d]; 
+							})
+						);
+			    }else{
+
+					self.hist_data[d] = d3.layout.histogram()
+					    .bins(self.y[d].ticks(60))
+					    //.bins(self.y[d].ticks())
+					    (transformed_data);
+					    //(values);
 				}
-				return newkey;
+				transformed_data = null;
+
+				self.x_hist[d] = d3.scale.linear()
+				    .domain([0, d3.max(self.hist_data[d], function(data) { 
+				    	return data.length;
+				    })])
+				    .range([0, 40]);
+			});
+
+			// If there were active brushes before re-rendering set the brush extents again
+			var filter_to_remove = [];
+			self.active_brushes.forEach (function(p) {
+				if ( self.y.hasOwnProperty(p) ) {
+				    // Re-set brush
+				    self.y[p].brush.extent(self.brush_extents[p]);
+				}else{
+					// Add to remove list
+					filter_to_remove.push(p);
+				}
 			});
 			
+			// Remove unnecessary filters
+			for (var i = filter_to_remove.length - 1; i >= 0; i--) {
+				var index = self.active_brushes.indexOf(filter_to_remove[i]);
+				if (index > -1) {
+					self.active_brushes.splice(index, 1);
+				}
+			};
+
+			if (filter_to_remove.length>0){
+				var filter = {};
+				self.active_brushes.forEach (function(p) {
+					filter[p] = self.brush_extents[p];
+		    	});
+				self.filterset(filter);
+			}
+				
 
 
-		// In order to work with the canvas renderer styles need to be applied directlo
-		// to svg elements instead of using a stile. Here we set stroke width and color 
-		// for all ticks and axis paths
-		svg.selectAll('.axis .domain')
-	      	.attr("stroke-width", "2")
-	      	.attr("stroke", "#000")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("fill", "none");
+			self.parameters.forEach(function(para) {
 
-	    svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#000");
+				var bar = svg.selectAll("." + para)
+				    .data(self.hist_data[para])
+				  	.enter().append("g")
+				    .attr("class", "bar "+para)
+				    .attr("transform", function(d) { 
+				    	var height_modifier = self.y[para](d.x) - height/self.hist_data[para].length;
+				    	if(!height_modifier){
+				    		height_modifier = 0;
+				    	}
+				    	return "translate(" + self.x(para) + "," + height_modifier + ")";
+				    });
 
-	    svg.selectAll('.axis path')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#000");
+				bar.append("rect")
+				    .attr("height", 
+				    	height/self.hist_data[para].length - 1
+				    )
+				    .attr("width", function(d) {
+				    	return self.x_hist[para](d.y);
+					})
+					.style("fill", "#1F77B4");
+
+			});
+
+			//var colors = d3.scale.category10().domain(uniqueArray);
+
+			// Add a group element for each trait.
+			var g = svg.selectAll(".trait")
+			    .data(self.parameters)
+			    .enter().append("svg:g")
+			    //.attr("class", "trait")
+			    .attr("class", function(d) { return "trait " + d; })
+			    .attr("transform", function(d) { 
+			    	return "translate(" + self.x(d) + ")"; 
+			    });
+				  
+			// Add an axis and title.
+			g.append("svg:g")
+			    .attr("class", "axis")
+			    .each(function(d) { 
+			    	d3.select(this).call(self.axis.scale(self.y[d]));
+			    })
+			    .append("svg:text")
+			    .attr("text-anchor", "middle")
+			    .attr("y", -15)
+			    .html(function (d) { 
+					// Renaming of keys introducing subscript
+					var newkey = "";
+					var parts = d.split("_");
+					if (parts.length>1){
+						newkey = "<tspan>"+parts[0]+"</tspan>";
+						for (var i=1; i<parts.length; i++){
+							var modifier = "";
+							if(i==1)
+								modifier = ' dy="5"';
+							newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+						}
+					}else{
+						newkey = d;
+					}
+					return newkey;
+				});
+				
 
 
-		// Add a brush for each axis.
-		g.append("svg:g")
-		    .attr("class", "brush")
-		    .each(function(d) { d3.select(this).call(self.y[d].brush); })
-		    .selectAll("rect")
-		    .attr("x", -8)
-		    .attr("width", 16);
+			// In order to work with the canvas renderer styles need to be applied directlo
+			// to svg elements instead of using a stile. Here we set stroke width and color 
+			// for all ticks and axis paths
+			svg.selectAll('.axis .domain')
+		      	.attr("stroke-width", "2")
+		      	.attr("stroke", "#000")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("fill", "none");
+
+		    svg.selectAll('.axis line')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#000");
+
+		    svg.selectAll('.axis path')
+		      	.attr("stroke-width", "2")
+		      	.attr("shape-rendering", "crispEdges")
+		      	.attr("stroke", "#000");
+
+
+			// Add a brush for each axis.
+			g.append("svg:g")
+			    .attr("class", "brush")
+			    .each(function(d) { d3.select(this).call(self.y[d].brush); })
+			    .selectAll("rect")
+			    .attr("x", -8)
+			    .attr("width", 16);
+
+		}
+		var self = this;
 
 		// Returns the path for a given data point.
 		function path(d) {
@@ -1861,7 +1881,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			  	return [x(p), self.y[p](d[p])];
 			}));
 		}
-
 
 		// Resize method, recalculates position of all elements in svg
 		function resize_parallels() {
@@ -1883,43 +1902,60 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 				yobj[para].range([height,0]);
 
-				//yobj[para].brush.y(yobj[para]);
 				// TODO: Need for replacement of brushes when modifying height
-		        	
 
-				var bar = svg.selectAll("." + para)
+				var bar = self.svg.selectAll("." + para)
 					.data(self.hist_data[para])
 				    .attr("transform", function(d) { 
 				    	return "translate(" + self.x(para) + "," + (yobj[para](d.x) - height/hd[para].length) + ")";
 				    });
-
-				/*bar.append("rect")
-				    .attr("width", function(d) {
-				    	return self.x_hist[para](d.y);
-					});*/
-
 			});
 
-
 			// Add a group element for each trait.
-			svg.selectAll(".trait")
+			self.svg.selectAll(".trait")
 				.data(self.parameters)
 			    .attr("transform", function(d) { 
 			    	return "translate(" + self.x(d) + ")";
 			    });
 
-
-			svg.selectAll('.axis')
+			self.svg.selectAll('.axis')
 				.data(self.parameters)
 			    .each(function(d) { 
 			    	d3.select(this).call(self.axis.scale(yobj[d]));
 			    })
-
-			
-
 		}
 
-		var self = this;
+		d3.select("#toggle_filters").on("click", function(){
+
+
+			if(self.filters_hidden){
+				self.filters_hidden = false;
+				$(self.histoEl).css("height", "39%");
+
+				$(self.scatterEl).animate({height: "60%"}, {
+					step: function( now, fx ) {
+						$(self.scatterEl).trigger('resize');
+					},
+					complete: function() {
+						$(self.scatterEl).trigger('resize');
+						self.parallelsPlot();
+						resize_parallels();
+					}
+				});
+
+			}else{
+				self.filters_hidden = true;
+				$(self.scatterEl).animate({height: "95%"}, {
+					step: function( now, fx ) {
+						$(self.scatterEl).trigger('resize');
+					}
+				});
+				$(self.histoEl).css("height", "40px");
+				self.parallelsPlot();
+				
+			}
+			
+		});
 
 		$(window).resize(resize_parallels);
 	}
