@@ -305,13 +305,14 @@ module.exports = function (grunt) {
         },
         release: {
             options: {
-                push: false, //default: true
-                pushTags: false, //default: true
+                //push: false, //default: true
+                //pushTags: false, //default: true
                 npm: false, //default: true
                 tagName: 'v<%= version %>', //default: '<%= version %>'
                 tagMessage: 'Tagging version v<%= version %>', //default: 'Version <%= version %>',
                 commitMessage: 'Release v<%= version %>', //default: 'release <%= version %>'
-                github: false
+                github: false,
+                additionalFiles: ['bower.json']
             }
         },
         compress: {
@@ -366,7 +367,7 @@ module.exports = function (grunt) {
     grunt.registerTask('createrelease', [
         'clean:dist',
         'build',
-        'compress:release',
+        //'compress:release',
         'release'
     ]);
 
