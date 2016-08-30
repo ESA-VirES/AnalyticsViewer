@@ -19,6 +19,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
 
+	this.uom_set = args.uom_set;
 	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.callback = callback;
@@ -358,6 +359,17 @@ scatterPlot.prototype.render = function(){
         .attr("id", "save")
         .attr("style", "position: absolute; right: 149px; top: 7px")
         .text("Save as Image");
+
+    d3.select(this.scatterEl).append("button")
+        .attr("type", "button")
+        .attr("class", "btn btn-success")
+        .attr("id", "reset")
+        .attr("style", "position: absolute; right: 380px; top: 7px")
+        .text("Reset Zoom");
+
+    d3.select("#reset").on("click", function(){
+    	self.render();
+	});
 
 
 	d3.select("#save").on("click", function(){
@@ -768,6 +780,10 @@ scatterPlot.prototype.render = function(){
 		newkey = this.sel_x;
 	}
 
+	if(this.uom_set.hasOwnProperty(this.sel_x)){
+		newkey += " ("+this.uom_set[this.sel_x]+") ";
+	}
+
 	// Add ticks for X axis
 	svg.append("g")
 		.attr("class", "x axis")
@@ -796,6 +812,9 @@ scatterPlot.prototype.render = function(){
 			newkey = parts.join(" ");
 		}else{
 			newkey = this.sel_y[i];
+		}
+		if(this.uom_set.hasOwnProperty(this.sel_y[i])){
+			newkey += " ("+this.uom_set[this.sel_y[i]]+") ";
 		}
 		combinednewkey.push(newkey);
 	};
@@ -1308,7 +1327,13 @@ scatterPlot.prototype.render = function(){
 				.attr("y", 9)
 				.attr("dy", ".35em")
 				.style("text-anchor", "end")
-				.text(function(d) {return d + " - " + self.sel_y[i]; });
+				.text(function(d) {
+					var label = d + " - " + self.sel_y[i];
+					/*if(self.uom_set.hasOwnProperty(self.sel_y[i])){
+						label += " ("+self.uom_set[self.sel_y[i]]+") ";
+					}*/
+					return label; 
+				});
 		};
 	}
 

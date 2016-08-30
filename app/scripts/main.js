@@ -61,7 +61,12 @@ var args = {
 	selection_y: ["average_bias", "rms"],
 	parsedData: parsedData,
 	lineConnections: true,
-	showDropDownSelection: false
+	showDropDownSelection: false,
+	uom_set: {
+		"start_date":"s",
+		"average_bias": "bla",
+		"rms": "blue"
+	}
 };
 
 
