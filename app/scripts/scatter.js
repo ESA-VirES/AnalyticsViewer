@@ -19,7 +19,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
 
-	this.uom_set = args.uom_set;
+	this.uom_set = defaultFor(args.uom_set, {});
 	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.callback = callback;
