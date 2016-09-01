@@ -1,5 +1,16 @@
 
 
+(function () {
+    var originalIs = $.fn.is;
+    $.fn.is = function (selector) {
+        //selector = getFullSelectorIds(selector);
+        if($(this.context).attr("id")=="filtermanager" && selector==":focus"){
+        	return true;
+        }
+        return originalIs.call(this, selector);
+    };
+})(jQuery);
+
 function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
 
@@ -51,6 +62,8 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.selectedpoint = null;
 	this.residuals = false;
 	this.lineConnections = defaultFor(args.lineConnections, false);
+	this.active_filters = [];
+	this.fieldsforfiltering = defaultFor(args.fieldsforfiltering, ["F","F_error","B_N", "B_E", "B_C", "B_error","dst","kp","qdlat","mlt"])
 
 	this.renderBlocks = defaultFor(args.renderBlocks, false);
 
@@ -113,6 +126,22 @@ scatterPlot.prototype.analyseData = function analyseData(){
 	    }
 	}
 
+}
+
+scatterPlot.prototype.createSubscript = function createSubscript(string){
+	// Adding subscript elements to string which contain underscores
+	var newkey = "";
+	var parts = string.split("_");
+	if (parts.length>1){
+		newkey = parts[0];
+		for (var i=1; i<parts.length; i++){
+			newkey+=(" "+parts[i]).sub();
+		}
+	}else{
+		newkey = string;
+	}
+
+	return newkey;
 }
 
 scatterPlot.prototype.parseData = function parseData(values){
@@ -339,6 +368,7 @@ scatterPlot.prototype.render = function(){
     d3.select("#save").remove();
     d3.select("#pngdataurl").remove();
     d3.select("#grid").remove();
+     d3.select("#imagerenderer").remove();
 
     d3.selectAll(".SumoSelect").remove();
 
@@ -1545,6 +1575,15 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// Clone array
 		this.parameters = this.headerNames.slice(0);
 
+		if(self.fieldsforfiltering.length>1){
+			for (var i = 0; i < self.fieldsforfiltering.length; i++) {
+				if(self.parameters.indexOf(self.fieldsforfiltering[i])>0){
+					self.active_filters.push(self.fieldsforfiltering[i]);
+				}
+			}
+			self.fieldsforfiltering = [];
+		}
+
 		// Do some cleanup (especially on objects with events)
 		d3.select(self.histoEl).selectAll(".brush").remove();
 		d3.select("#reset_filters").remove();
@@ -1578,9 +1617,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				self.parameters.splice(index, 1);
 			}
 		});
-		var buttonlabel = 'Hide filters';
+		var buttonlabel = 'Hide filters <i class="fa fa-chevron-down" aria-hidden="true"></i>';
 		if(self.filters_hidden){
-			buttonlabel = 'Show filters';
+			buttonlabel = 'Show filters <i class="fa fa-chevron-up" aria-hidden="true"></i>';
 		}
 
 		d3.select(this.histoEl).append("button")
@@ -1592,14 +1631,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 
 		if(!self.filters_hidden){
-
-			var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right,
+			var leftshift = 70;
+			var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right - leftshift,
 				height = $(this.histoEl).height() - this.histoMargin.top - this.histoMargin.bottom;
 
 			this.x_hist = {};
 			this.hist_data = {};
 			this.y = {};
-			this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
+			this.x = d3.scale.ordinal().domain(self.active_filters).rangePoints([0, width]);
 			this.axis = d3.svg.axis().orient("left");
 
 			var line = d3.svg.line(),
@@ -1614,16 +1653,137 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    .attr("height", $(this.histoEl).height())
 			  	.append("g")
 			  	.attr("display", "block")
-			  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
+			  	.attr("transform", "translate(" + (this.histoMargin.left+leftshift) + "," + (this.histoMargin.top) + ")");
 
 			d3.select(this.histoEl).append("button")
 		        .attr("type", "button")
 		        .attr("class", "btn btn-success")
 		        .attr("disabled", true)
 		        .attr("id", "reset_filters")
-		        .attr("style", "position: absolute; left: 158px; top:-30px;")
-		        .text("Reset Filters");
+		        .attr("style", "position: absolute; left: 174px; top:-30px;")
+		        .html('Reset Filters <i class="fa fa-eraser erasorfunction" aria-hidden="true"></i>');
 
+
+			d3.select(this.histoEl).append("div")
+				.attr("class", "input-group")
+				.attr("id", "filterinputgroup")
+				.attr("style", "position: absolute; top:12px; height:15px; width:100%; left:30px; padding-left:28px;")
+				.append("div")
+				.attr("class", "input-group-btn")
+				.append("button")
+				.attr("id", "addfilteropen")
+				.attr("type", "button")
+				.attr("style", "width:60px;")
+				.attr("class", "btn btn-default dropdown-toggle")
+				.html('Add <span class="caret"></span>');
+
+			d3.select("#filterinputgroup").append("div")
+				.attr("class", "w2ui-field")
+				.attr("style", "position: absolute; height:15px; width:"+($(this.histoEl).width()-100)+"px; left:"+(87)+"px;")
+				.append("input")
+				.attr("id", "filtermanager");
+
+			var that = self;
+			function handleClickedItem(evt){
+				if($(evt.originalEvent.srcElement).hasClass("erasorfunction") ||
+				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+
+					var index = that.active_brushes.indexOf(evt.item.id);
+					if (index > -1) {
+						that.active_brushes.splice(index, 1);
+						that.y[evt.item.id].brush.clear();
+					}
+
+					that.active_brushes = that.active_filters.filter(function(p) { return !that.y[p].brush.empty(); });
+					that.brush_extents = {};
+					that.active_brushes.map(function(p) { that.brush_extents[p] = that.y[p].brush.extent(); });
+					var filter = {};
+
+					var active;
+					
+					_.each(that.data, function(row){
+						active = true;
+						that.active_brushes.forEach (function(p) {
+							filter[p] = that.brush_extents[p];
+					    	if (!(that.brush_extents[p][0] <= row[p] && row[p] <= that.brush_extents[p][1])){
+					    		active = false;
+					    	}
+				    	});
+						row["active"] = active ? 1 : 0;
+					}); 
+
+					that.filterset(filter);
+					that.parallelsPlot();
+					that.render();
+
+				}
+			}
+
+			function handleRemovedItem(evt){
+				if($(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+
+					var index = that.active_filters.indexOf(evt.item.id);
+					if (index > -1) {
+						that.active_filters.splice(index, 1);
+						that.y[evt.item.id].brush.clear();
+					}
+
+					that.active_brushes = that.active_filters.filter(function(p) { return !that.y[p].brush.empty(); });
+					that.brush_extents = {};
+					that.active_brushes.map(function(p) { that.brush_extents[p] = that.y[p].brush.extent(); });
+					var filter = {};
+
+					var active;
+					
+					_.each(that.data, function(row){
+						active = true;
+						that.active_brushes.forEach (function(p) {
+							filter[p] = that.brush_extents[p];
+					    	if (!(that.brush_extents[p][0] <= row[p] && row[p] <= that.brush_extents[p][1])){
+					    		active = false;
+					    	}
+				    	});
+						row["active"] = active ? 1 : 0;
+					}); 
+
+					that.filterset(filter);
+					that.parallelsPlot();
+					that.render();
+
+				}
+			}
+
+			$('#filtermanager').w2field('enum', { 
+				items: self.parameters, 
+				openOnFocus: true,
+				selected: self.active_filters,
+				renderItem: function (item, index, remove) {
+					item.style = "width: 120px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					var curfil = item.id;
+					var erasericon = '';
+					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
+						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+					}
+					var html = remove + erasericon +self.createSubscript(item.id);
+					return html;
+				},
+				renderDrop: function (item, options) {
+					var html = item.id;
+				return html;
+				},
+				onClick: handleClickedItem.bind(self),
+				onRemove: handleRemovedItem.bind(self)
+			});
+
+			$( "#addfilteropen" ).click(function(){
+				$("#filtermanager").focus();
+			});
+
+			$('#filtermanager').change(function(event){
+				var parameters = $('#filtermanager').data('selected');
+				self.active_filters = parameters.map(function(item) {return item.id;});
+				self.parallelsPlot();
+			});
 
 		    if (self.active_brushes.length>0){
 				// Activate clear filter button
@@ -1645,7 +1805,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			// Handles a brush event, toggling the display of foreground lines.
 			function brushend(parameter) {
 				
-				self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
+				self.active_brushes = self.active_filters.filter(function(p) { return !self.y[p].brush.empty(); });
 				self.brush_extents = {};
 				self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
 				var filter = {};
@@ -1671,11 +1831,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			}
 
-
-		    var self = this;
 		    self.svg = svg;
 			// Create a scale and brush for each trait.
-			self.parameters.forEach(function(d) {
+			self.active_filters.forEach(function(d) {
 
 				if(self.col_ordinal.indexOf(d) != -1){
 					self.y[d] = d3.scale.ordinal()
@@ -1778,7 +1936,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				
 
 
-			self.parameters.forEach(function(para) {
+			self.active_filters.forEach(function(para) {
 
 				var bar = svg.selectAll("." + para)
 				    .data(self.hist_data[para])
@@ -1807,7 +1965,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			// Add a group element for each trait.
 			var g = svg.selectAll(".trait")
-			    .data(self.parameters)
+			    .data(self.active_filters)
 			    .enter().append("svg:g")
 			    //.attr("class", "trait")
 			    .attr("class", function(d) { return "trait " + d; })
@@ -1820,8 +1978,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    .attr("class", "axis")
 			    .each(function(d) { 
 			    	d3.select(this).call(self.axis.scale(self.y[d]));
-			    })
-			    .append("svg:text")
+			    });
+			    /*.append("svg:text")
 			    .attr("text-anchor", "middle")
 			    .attr("y", -15)
 			    .html(function (d) { 
@@ -1840,7 +1998,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 						newkey = d;
 					}
 					return newkey;
-				});
+				});*/
 				
 
 
@@ -1885,7 +2043,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// Resize method, recalculates position of all elements in svg
 		function resize_parallels() {
 
-		    var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right,
+		    var leftshift = 70;
+			var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right - leftshift,
 				height = $(self.histoEl).height() - self.histoMargin.top - self.histoMargin.bottom;
 
 			d3.select(".parallels")
@@ -1898,7 +2057,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			var yobj = self.y;
 
 
-			self.parameters.forEach(function(para) {
+			self.active_filters.forEach(function(para) {
 
 				yobj[para].range([height,0]);
 
@@ -1913,16 +2072,33 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			// Add a group element for each trait.
 			self.svg.selectAll(".trait")
-				.data(self.parameters)
+				.data(self.active_filters)
 			    .attr("transform", function(d) { 
 			    	return "translate(" + self.x(d) + ")";
 			    });
 
 			self.svg.selectAll('.axis')
-				.data(self.parameters)
+				.data(self.active_filters)
 			    .each(function(d) { 
 			    	d3.select(this).call(self.axis.scale(yobj[d]));
 			    })
+
+			$("#filterinputgroup .w2ui-field").width( $(self.histoEl).width()-100 );
+			$('#filtermanager').w2field('enum', { 
+				items: self.parameters, 
+				openOnFocus: true,
+				selected: self.active_filters,
+				renderItem: function (item, index, remove) {
+					item.style = "width: 120px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					var curfil = item.id;
+					var erasericon = '';
+					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
+						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+					}
+					var html = remove + erasericon +self.createSubscript(item.id);
+					return html;
+				}
+			});
 		}
 
 		d3.select("#toggle_filters").on("click", function(){

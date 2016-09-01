@@ -87,3 +87,36 @@ rect.zoom.x.box{
 rect.zoom.y.box{
   cursor: ns-resize;
 }
+
+.w2ui-list{
+  width: 100% !important;
+  height: 33px !important;
+  //padding: 2px !important;
+}
+
+#filtermanager{
+  height: 5px !important;
+}
+
+#w2ui-overlay{
+  left: 46px !important;
+}
+
+.w2ui-list ul li .erasoricon {
+  float: right;
+  width: 15px;
+  height: 14px;
+  margin-top: -1px;
+  border-radius: 15px;
+}
+.w2ui-list ul li .erasoricon:hover {
+  background-color: #D77F7F;
+  color: white;
+}
+
+.w2ui-list ul li .erasoricon i{
+  margin-left: 1px;
+  margin-top: 2px;
+}
+
+
