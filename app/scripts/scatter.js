@@ -423,7 +423,7 @@ scatterPlot.prototype.render = function(){
 
 		c.toBlob(function(blob) {
 			saveAs(blob, "Analytics.png");
-		}, "image/png");
+		}, "image/png" ,1);
 
 	});
 
@@ -1758,7 +1758,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				openOnFocus: true,
 				selected: self.active_filters,
 				renderItem: function (item, index, remove) {
-					item.style = "width: 120px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
 					var curfil = item.id;
 					var erasericon = '';
 					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
@@ -2089,7 +2089,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				openOnFocus: true,
 				selected: self.active_filters,
 				renderItem: function (item, index, remove) {
-					item.style = "width: 120px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
 					var curfil = item.id;
 					var erasericon = '';
 					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
