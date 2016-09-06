@@ -663,51 +663,68 @@ scatterPlot.prototype.render = function(){
 	}else if (this.sel_y.length >= 2){
 
 		var domains = [];
-		//var newdomains = [];
-
 
 		for (var i = 0; i < this.sel_y.length; i++) {
+
 			var sel = this.sel_y[i];
-			domains.push(d3.extent(this.data, function(d) { 
+			var d = d3.extent(this.data, function(d) { 
 				return d[sel];
-			}));
+			});
+
+			domains.push({
+				parameter: sel,
+				domain: d,
+				extent: Math.abs(d[1]-d[0])
+			});
 		}
+		// Sort by domain size
+		domains = _.sortBy(domains, 'extent');
 
-		var difs = domains.map(function(a){
-			return (Math.abs(a[1] - a[0]));
-		});
+		// Take maximum and minimum extent for left and right and check the
+		// others to see where they fit better
 
-		var med = d3.median(difs);
+		var min_ext = domains[0];
+		var max_ext = domains[domains.length-1];
 
-		difs.map(function(d, i){
-			if(self.left_scale.length > 0){
-				if( Math.abs(d-med)>=Math.abs(difs[i-1]-med) ){
-					self.right_scale.push(self.sel_y[i]);
-				}else{
-					self.left_scale.push(self.sel_y[i]);
-				}
+		self.left_scale.push(max_ext.parameter);
+		self.right_scale.push(min_ext.parameter);
+
+		// Go through products between first and last and decide where to add them
+		for (var i = 1; i < domains.length-1; i++) {
+
+			var dif_to_min = Math.abs(domains[i].extent / min_ext.extent);
+			//var dif_to_max = Math.abs(domains[i].extent / max_ext.extent);
+			// We can check if the covered extent is much higher (300 times) the one
+			// covered by the minimum, we should add it to the high value scale (left)
+			// There is really no solution if there more then two very different extents
+			if(dif_to_min > 300){
+				self.left_scale.push(domains[i].parameter);
 			}else{
-				if(d>med){
-					self.left_scale.push(self.sel_y[i]);
-				}else{
-					self.right_scale.push(self.sel_y[i]);
-				}
+				self.right_scale.push(domains[i].parameter);
 			}
-		});
+		}
 
 		// Take the maximum and the minimum of both collections (separated by median)
 		// to use as overall domain on each scale
 		var d_max1 = d3.max(domains, function(d, i){
-			if (self.left_scale.indexOf(self.sel_y[i]) != -1){return d[1];}
+			if (self.left_scale.indexOf(d.parameter) != -1){
+				return d.domain[1];
+			}
 		});
 		var d_min1 = d3.min(domains, function(d, i){
-			if (self.left_scale.indexOf(self.sel_y[i]) != -1){return d[0];}
+			if (self.left_scale.indexOf(d.parameter) != -1){
+				return d.domain[0];
+			}
 		});
 		var d_max2 = d3.max(domains, function(d, i){
-			if (self.right_scale.indexOf(self.sel_y[i]) != -1){return d[1];}
+			if (self.right_scale.indexOf(d.parameter) != -1){
+				return d.domain[1];
+			}
 		});
 		var d_min2 = d3.min(domains, function(d, i){
-			if (self.right_scale.indexOf(self.sel_y[i]) != -1){return d[0];}
+			if (self.right_scale.indexOf(d.parameter) != -1){
+				return d.domain[0];
+			}
 		});
 		
 	}
@@ -803,8 +820,10 @@ scatterPlot.prototype.render = function(){
 
 		self.scatter_svg.select('rect.zoom.xy.box').call(xyzoom);
 
+		
+		self.updatedots();
+		self.updateTicks();
 		zoom_update();
-		resize();
 
 	}
 
@@ -823,8 +842,9 @@ scatterPlot.prototype.render = function(){
 			.y(self.yScale_left)
 			.on("zoom", zoomed);
 
+		self.updatedots();
+		self.updateTicks();
 		zoom_update();
-		resize();
 	}
 
 
@@ -972,52 +992,8 @@ scatterPlot.prototype.render = function(){
 				.html(paras_right);
 	}
 
+	self.updateTicks();
 
-	// In order to work with the canvas renderer styles need to be applied directlo
-	// to svg elements instead of using a stile. Here we set stroke width and color 
-	// for all ticks and axis paths
-	self.scatter_svg.selectAll('.axis .domain')
-      	.attr("stroke-width", "2")
-      	.attr("stroke", "#000")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("fill", "none");
-
-    self.scatter_svg.selectAll('.axis path')
-      	.attr("stroke-width", "2")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("stroke", "#000");
-
-    // Check if grid active and adapt style accordingly
-  	if(self.grid_active){
-
-		self.scatter_svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#D3D3D3");
-
-		self.xAxis.tickSize(-(height-self.margin.bottom));
-		self.yAxis_left.tickSize(-width);
-		
-
-	}else{
-		self.xAxis.tickSize(5);
-		self.yAxis_left.tickSize(5);
-
-		self.scatter_svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#000");
-	}
-
-	// Update Axis to draw lines
-	self.scatter_svg.select('.x.axis')
-      .call(self.xAxis);
-
-    self.scatter_svg.select('.y.axis')
-      .call(self.yAxis_left);
-
-    self.scatter_svg.select('.y2.axis')
-      .call(self.yAxis_right);
 
     // Add rect to allow zoom and pan interaction over complete graph
 	self.scatter_svg.append("rect")
@@ -1400,40 +1376,13 @@ scatterPlot.prototype.render = function(){
 		    // Update legend for available unique identifiers
 			var legend = self.scatter_svg.select(".legend_"+self.sel_y[i])
 			legend.select("circle")
-				.attr("cx", width - 15)
+				.attr("cx", width - 25)
 			
 			legend.select("text")
-				.attr("x", width - 24)
+				.attr("x", width - 34)
 		}
 
-	   
-
-	    // update x axis label position
-	    self.scatter_svg.select('.x.axis')
-	    	.select('.label')
-	    	.attr("x", width - 10);
-
-
-	    if(self.grid_active){
-
-			self.scatter_svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
-		      	.attr("shape-rendering", "crispEdges")
-		      	.attr("stroke", "#D3D3D3");
-
-			self.xAxis.tickSize(-(height-self.margin.bottom));
-			self.yAxis_left.tickSize(-width);
-			
-
-		}else{
-			self.xAxis.tickSize(5);
-			self.yAxis_left.tickSize(5);
-
-			self.scatter_svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
-		      	.attr("shape-rendering", "crispEdges")
-		      	.attr("stroke", "#000");
-		}
+		self.updateTicks();
 
 		// Update the axis with the new scale
 	    self.scatter_svg.select('.x.axis')
@@ -1448,18 +1397,7 @@ scatterPlot.prototype.render = function(){
 	      		.call(self.yAxis_right);
 	    }
 
-	    /* Force D3 to recalculate and update the dots */
-	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
-	    	self.scatter_svg.selectAll(".dot_"+self.sel_y[i])
-				.attr("cx", function(d) {return self.xScale(d[self.sel_x]);})
-				.attr("cy", function(d) {
-					if(self.right_scale.length > 0 && _.indexOf(self.right_scale, self.sel_y[i]) > -1 ){
-						return self.yScale_right(d[self.sel_y[i]]);
-					}else{
-						return self.yScale_left(d[self.sel_y[i]]);
-					}
-				});
-	    };
+	    self.updatedots();
 
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
 			renderlines(self.sel_y[i]);
@@ -1545,9 +1483,60 @@ scatterPlot.prototype.render = function(){
 
 }
 
+scatterPlot.prototype.updateTicks = function updateTicks(){
+	var self = this;
+	// In order to work with the canvas renderer styles need to be applied directlo
+	// to svg elements instead of using a stile. Here we set stroke width and color 
+	// for all ticks and axis paths
+	self.scatter_svg.selectAll('.axis .domain')
+      	.attr("stroke-width", "2")
+      	.attr("stroke", "#000")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("fill", "none");
+
+    self.scatter_svg.selectAll('.axis path')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
+
+    // Check if grid active and adapt style accordingly
+  	if(self.grid_active){
+
+		self.scatter_svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#D3D3D3");
+
+		self.xAxis.tickSize(-(self.height-self.margin.bottom));
+		self.yAxis_left.tickSize(-self.width);
+		
+
+	}else{
+		self.xAxis.tickSize(5);
+		self.yAxis_left.tickSize(5);
+
+		self.scatter_svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#000");
+	}
+
+	// Update Axis to draw lines
+	self.scatter_svg.select('.x.axis')
+      .call(self.xAxis);
+
+    self.scatter_svg.select('.y.axis')
+      .call(self.yAxis_left);
+
+    self.scatter_svg.select('.y2.axis')
+      .call(self.yAxis_right);
+};
+
 scatterPlot.prototype.renderdots = function renderdots(parameter){
 	var self = this;
 
+	d3.select('svg').selectAll(".dot_"+parameter).on('click',null);
+	d3.select('svg').selectAll(".dot_"+parameter).on('mouseover',null);
 	d3.select('svg').selectAll(".dot_"+parameter).remove();
 
 	self.scatter_svg.selectAll(".dot_"+parameter)
@@ -1555,9 +1544,7 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 		.enter().append("circle")
 		.attr("class", "area").attr("clip-path", "url(#clip)")
 		.attr("class", "dot_"+parameter)
-		/*.style("display", function(d) {
-			return !d["active"] ? "none" : null;
-		})*/
+
 		.attr("r", 3.5)
 
 		.attr("cx", function(d) { 
@@ -1669,8 +1656,22 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
     		else if (self.selectedpoint[0] !== $(this)[0])
     			$(this).attr("r",3.5);
         });
+};
 
-
+scatterPlot.prototype.updatedots = function updatedots(parameter){
+	var self = this;
+	// Force D3 to recalculate and update the dots 
+	for (var i = self.sel_y.length - 1; i >= 0; i--) {
+		self.scatter_svg.selectAll(".dot_"+self.sel_y[i])
+			.attr("cx", function(d) {return self.xScale(d[self.sel_x]);})
+			.attr("cy", function(d) {
+				if(self.right_scale.length > 0 && _.indexOf(self.right_scale, self.sel_y[i]) > -1 ){
+					return self.yScale_right(d[self.sel_y[i]]);
+				}else{
+					return self.yScale_left(d[self.sel_y[i]]);
+				}
+			});
+	};
 };
 
 scatterPlot.prototype.applyFilters = function(){
