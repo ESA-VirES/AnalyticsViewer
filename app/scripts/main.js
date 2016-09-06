@@ -41,7 +41,7 @@ var args = {
 	selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],
 	selection_x: "Latitude",
-	selection_y: ["F_error"],
+	selection_y: ["F_error", "F"],
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
 
 };
