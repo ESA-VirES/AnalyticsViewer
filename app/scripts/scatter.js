@@ -454,8 +454,9 @@ scatterPlot.prototype.render = function(){
 
 	    var y_select = d3.select(this.scatterEl)
 				.insert("div")
+				.attr("id", "yselectiondropdown")
 				.attr("style", "position: absolute;"+
-					"margin-left:"+(this.margin.left + 10)+
+					"margin-left:"+(this.margin.left)+
 					"px; margin-top:"+(this.margin.top-40)+"px;")
 				.append("select")
 					.attr("multiple", "multiple");
@@ -484,17 +485,16 @@ scatterPlot.prototype.render = function(){
 				return newkey; 
 			});
 
-		$(y_select).SumoSelect({ okCancelInMulti: true });
+		$(y_select).SumoSelect({ okCancelInMulti: false });
 
 
 		$(".SumoSelect").change(function(evt){
-
-			var sel_y = [];
-			_.each($(this).find(".optWrapper .selected"), function(elem){
-				sel_y.push(elem.dataset.val);
+			var objs = [];
+			$('#yselectiondropdown option:selected').each(function(i) {
+				objs.push($(this).val());
 			});
 
-			self.sel_y = sel_y;
+			self.sel_y = objs;
 			self.render();
 			self.parallelsPlot();
 		
@@ -522,7 +522,7 @@ scatterPlot.prototype.render = function(){
 			.insert("div")
 				.attr("class", "xselectdropdown")
 				.attr("style", "position: relative; float:right;"+
-					"width:120px;"+"bottom:45px; right:160px")
+					"width:120px;"+"bottom:55px; right:"+(this.margin.right+127)+"px;")
 				.append("select")
 					.attr("style", "width: 250px;");
 
@@ -553,12 +553,13 @@ scatterPlot.prototype.render = function(){
 				return newkey; 
 			});
 
-		$(x_select).SumoSelect({ okCancelInMulti: false });
+		$(x_select).SumoSelect({ okCancelInMulti: false, up: true });
 
 
 		$(".xselectdropdown").find(".SumoSelect").change(function(evt){
 
-			self.sel_x = $(this).find(".optWrapper .selected").data().val;
+			self.sel_x = $(this).find("option:selected").val();
+			
 			self.render();
 			self.parallelsPlot();
 		
@@ -809,7 +810,7 @@ scatterPlot.prototype.render = function(){
 
 		self.scatter_svg.select(".x.axis").call(self.xAxis);
 		self.scatter_svg.select(".y.axis").call(self.yAxis_left);
-		self.scatter_svg.select(".y2.axis").call(self.yAxis_right);
+
 
 		xyzoom = d3.behavior.zoom()
 				.x(self.xScale)
@@ -817,6 +818,7 @@ scatterPlot.prototype.render = function(){
 				.on("zoom", multizoomed);
 
 		if(self.right_scale.length > 0){
+			self.scatter_svg.select(".y2.axis").call(self.yAxis_right);
 			y2zoom = d3.behavior.zoom()
 				.y(self.yScale_right)
 				.on("zoom", zoomed);
@@ -836,7 +838,9 @@ scatterPlot.prototype.render = function(){
 		self.scatter_svg.select(".x.axis").call(self.xAxis);
 		self.scatter_svg.select(".y.axis").call(self.yAxis_left);
 
-		y2zoom.scale(xyzoom.scale()).translate(xyzoom.translate());
+		if(self.right_scale.length > 0){
+			y2zoom.scale(xyzoom.scale()).translate(xyzoom.translate());
+		}
 		//self.scatter_svg.select(".y2.axis").call(self.yAxis_right);
 
 		xzoom = d3.behavior.zoom()
@@ -857,7 +861,9 @@ scatterPlot.prototype.render = function(){
 
 		self.scatter_svg.select('rect.zoom.x.box').call(xzoom);
 		self.scatter_svg.select('rect.zoom.y.box').call(yzoom);
-		self.scatter_svg.select('rect.zoom.y2.box').call(y2zoom);
+		if(self.right_scale.length > 0){
+			self.scatter_svg.select('rect.zoom.y2.box').call(y2zoom);
+		}
 	}
 
 
@@ -867,7 +873,7 @@ scatterPlot.prototype.render = function(){
 		if(self.grid_active){
 
 			self.scatter_svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
+		      	.attr("stroke-width", "1")
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#D3D3D3");
 
@@ -900,35 +906,29 @@ scatterPlot.prototype.render = function(){
 	});
 
 	// Renaming of selected key introducing subscript
-	var newkey = "";
+	var x_key = "";
 	var parts = this.sel_x.split("_");
 	if (parts.length>1){
-		newkey = "<tspan>"+parts[0]+"</tspan>";
+		x_key = "<tspan>"+parts[0]+"</tspan>";
 		for (var i=1; i<parts.length; i++){
 			var modifier = "";
 			if(i==1)
 				modifier = ' dy="5"';
-			newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+			x_key+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
 		}
 	}else{
-		newkey = this.sel_x;
+		x_key = this.sel_x;
 	}
 
 	if(this.uom_set.hasOwnProperty(this.sel_x)){
-		newkey += " ("+this.uom_set[this.sel_x]+") ";
+		x_key += " ("+this.uom_set[this.sel_x]+") ";
 	}
 
 	// Add ticks for X axis
 	self.scatter_svg.append("g")
 		.attr("class", "x axis")
 		.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
-		.call(self.xAxis)
-		.append("text")
-			.attr("class", "label")
-			.attr("x", width - 10)
-			.attr("y", -10)
-			.style("text-anchor", "end")
-			.html(newkey);
+		.call(self.xAxis);
 
 
 	var paras_left = [];
@@ -948,7 +948,7 @@ scatterPlot.prototype.render = function(){
 	paras_left = paras_left.join("; ");
 	paras_left = paras_left.replace(/(?!^)dy="5"/g, '');
 
-	// Add ticks for Y axis
+	// Add ticks and label for Y axis
 	self.scatter_svg.append("g")
 		.attr("class", "y axis")
 		.call(self.yAxis_left)
@@ -960,6 +960,16 @@ scatterPlot.prototype.render = function(){
 			.attr("dy", "1em")
 			.style("text-anchor", "end")
 			.html(paras_left);
+
+	// Add x scale label to y axis to make sure it is rendered over all ticks
+	d3.select(".y.axis")
+			.append("text")
+			.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
+			.attr("class", "label")
+			.attr("x", width - 10)
+			.attr("y", -10)
+			.style("text-anchor", "end")
+			.html(x_key);
 
 
 	if(self.right_scale){
@@ -1513,7 +1523,7 @@ scatterPlot.prototype.updateTicks = function updateTicks(){
   	if(self.grid_active){
 
 		self.scatter_svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
+	      	.attr("stroke-width", "1")
 	      	.attr("shape-rendering", "crispEdges")
 	      	.attr("stroke", "#D3D3D3");
 
@@ -2280,11 +2290,13 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				$(self.scatterEl).animate({height: "95%"}, {
 					step: function( now, fx ) {
 						$(self.scatterEl).trigger('resize');
+					},
+					complete: function() {
+						$(self.scatterEl).trigger('resize');
+						$(self.histoEl).css("height", "40px");
+						self.parallelsPlot();
 					}
 				});
-				$(self.histoEl).css("height", "40px");
-				self.parallelsPlot();
-				
 			}
 			
 		});

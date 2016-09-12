@@ -12,7 +12,8 @@
     "Blob.js": "eligrey/Blob.js",
     "plotty": "santilland/plotty#^0.1.2",
     "font-awesome": "~4.5.0",
-    "w2ui": "git://github.com/vitmalina/w2ui.git#3a8dcfefb6a5318ae3a824cdbe10462c432725ec"
+    "w2ui": "git://github.com/vitmalina/w2ui.git#3a8dcfefb6a5318ae3a824cdbe10462c432725ec",
+    "sumoselect": "^3.0.2"
   },
   "ignore": [
     "**/.*",
