@@ -792,9 +792,11 @@ scatterPlot.prototype.render = function(){
       .y(self.yScale_left)
       .on("zoom", zoomed);
 
-    var y2zoom = d3.behavior.zoom()
-      .y(self.yScale_right)
-      .on("zoom", zoomed);
+    if(self.right_scale.length > 0){
+	    var y2zoom = d3.behavior.zoom()
+	      .y(self.yScale_right)
+	      .on("zoom", zoomed);
+	}
 
 	// Add clip path so only points in the area are shown
 	var clippath = this.scatter_svg.append("defs").append("clipPath")
@@ -814,9 +816,11 @@ scatterPlot.prototype.render = function(){
 				.y(self.yScale_left)
 				.on("zoom", multizoomed);
 
-		y2zoom = d3.behavior.zoom()
-			.y(self.yScale_right)
-			.on("zoom", zoomed);
+		if(self.right_scale.length > 0){
+			y2zoom = d3.behavior.zoom()
+				.y(self.yScale_right)
+				.on("zoom", zoomed);
+		}
 
 		self.scatter_svg.select('rect.zoom.xy.box').call(xyzoom);
 
@@ -978,18 +982,20 @@ scatterPlot.prototype.render = function(){
 		paras_right = paras_right.replace(/(?!^)dy="5"/g, '');
 
 		// Add ticks for Y2 axis
-		self.scatter_svg.append("g")
-			.attr("class", "y2 axis")
-			.attr("transform", "translate("+width+",0)")
-			.call(self.yAxis_right)
-			.append("text")
-				.attr("class", "label")
-				.attr("x", -10 )
-				.attr("transform", "rotate(-90)")
-				.attr("y", -20)
-				.attr("dy", "1em")
-				.style("text-anchor", "end")
-				.html(paras_right);
+		if(self.right_scale.length > 0){
+			self.scatter_svg.append("g")
+				.attr("class", "y2 axis")
+				.attr("transform", "translate("+width+",0)")
+				.call(self.yAxis_right)
+				.append("text")
+					.attr("class", "label")
+					.attr("x", -10 )
+					.attr("transform", "rotate(-90)")
+					.attr("y", -20)
+					.attr("dy", "1em")
+					.style("text-anchor", "end")
+					.html(paras_right);
+			}
 	}
 
 	self.updateTicks();
@@ -1368,7 +1374,9 @@ scatterPlot.prototype.render = function(){
 	    // Update the range of the scale with new width/height
 	    self.xScale.range([0, width]);
 	    self.yScale_left.range([0, (height-self.margin.bottom)]);
-	    self.yScale_right.range([0, (height-self.margin.bottom)]);
+	    if(self.right_scale.length > 0){
+	    	self.yScale_right.range([0, (height-self.margin.bottom)]);
+	    }
 
 
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
@@ -1470,16 +1478,18 @@ scatterPlot.prototype.render = function(){
 		.attr("pointer-events", "all")
 		.call(yzoom);
 
-	self.scatter_svg.append("rect")
-		.attr("class", "zoom y2 box")
-		.attr("width", this.margin.right)
-		.attr("height", height - this.margin.bottom)
-		.attr("transform", "translate(" + width + ",0)")
-		.attr("fill", "none")
-		.attr("stroke", "none")
-		.style("visibility", "hidden")
-		.attr("pointer-events", "all")
-		.call(y2zoom);
+	if(self.right_scale.length > 0){
+		self.scatter_svg.append("rect")
+			.attr("class", "zoom y2 box")
+			.attr("width", this.margin.right)
+			.attr("height", height - this.margin.bottom)
+			.attr("transform", "translate(" + width + ",0)")
+			.attr("fill", "none")
+			.attr("stroke", "none")
+			.style("visibility", "hidden")
+			.attr("pointer-events", "all")
+			.call(y2zoom);
+	}
 
 }
 
@@ -1527,9 +1537,10 @@ scatterPlot.prototype.updateTicks = function updateTicks(){
 
     self.scatter_svg.select('.y.axis')
       .call(self.yAxis_left);
-
-    self.scatter_svg.select('.y2.axis')
-      .call(self.yAxis_right);
+    if(self.right_scale.length > 0){
+	    self.scatter_svg.select('.y2.axis')
+	      .call(self.yAxis_right);
+    }
 };
 
 scatterPlot.prototype.renderdots = function renderdots(parameter){
