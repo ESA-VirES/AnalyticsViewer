@@ -2275,6 +2275,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 		d3.select("#toggle_filters").on("click", function(){
 
+			$(self.histoEl).empty();
+			$(window).off("resize", resize_parallels);
 
 			if(self.filters_hidden){
 				self.filters_hidden = false;
@@ -2287,7 +2289,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					complete: function() {
 						$(self.scatterEl).trigger('resize');
 						self.parallelsPlot();
-						resize_parallels();
 					}
 				});
 
