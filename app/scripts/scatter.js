@@ -29,6 +29,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 		args.histoMargin,
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
+	this.shorten_width = defaultFor(args.shorten_width, 100);
 
 	this.uom_set = defaultFor(args.uom_set, {});
 	this.filters_hidden = false;
@@ -364,7 +365,7 @@ scatterPlot.prototype.render = function(){
 	// Doing some cleanup as just emptyig the div does not seem to cleanup correctly
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
 		var par = this.sel_y[i];
-		d3.select('svg').selectAll(".dot_"+par).remove();
+		d3.select(this.scatterEl).selectAll(".dot_"+par).remove();
 
 	};
 
@@ -372,7 +373,7 @@ scatterPlot.prototype.render = function(){
     d3.select("#save").remove();
     d3.select("#pngdataurl").remove();
     d3.select("#grid").remove();
-     d3.select("#imagerenderer").remove();
+    d3.select("#imagerenderer").remove();
 
     d3.selectAll(".SumoSelect").remove();
 
@@ -485,7 +486,7 @@ scatterPlot.prototype.render = function(){
 				return newkey; 
 			});
 
-		$(y_select).SumoSelect({ okCancelInMulti: false });
+		$(y_select).SumoSelect({ okCancelInMulti: true });
 
 
 		$(".SumoSelect").change(function(evt){
@@ -1381,6 +1382,11 @@ scatterPlot.prototype.render = function(){
 			.attr("height", height - self.margin.bottom)
 			.attr("transform", "translate(" + width + ",0)");
 
+		self.scatter_svg.select('.y2.axis')
+			.attr("transform", "translate("+width+",0)");
+
+		
+
 	    // Update the range of the scale with new width/height
 	    self.xScale.range([0, width]);
 	    self.yScale_left.range([0, (height-self.margin.bottom)]);
@@ -1556,9 +1562,9 @@ scatterPlot.prototype.updateTicks = function updateTicks(){
 scatterPlot.prototype.renderdots = function renderdots(parameter){
 	var self = this;
 
-	d3.select('svg').selectAll(".dot_"+parameter).on('click',null);
-	d3.select('svg').selectAll(".dot_"+parameter).on('mouseover',null);
-	d3.select('svg').selectAll(".dot_"+parameter).remove();
+	self.scatter_svg.selectAll(".dot_"+parameter).on('click',null);
+	self.scatter_svg.selectAll(".dot_"+parameter).on('mouseover',null);
+	self.scatter_svg.selectAll(".dot_"+parameter).remove();
 
 	self.scatter_svg.selectAll(".dot_"+parameter)
 		.data(self.data)
@@ -1744,7 +1750,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 		if(self.fieldsforfiltering.length>1){
 			for (var i = 0; i < self.fieldsforfiltering.length; i++) {
-				if(self.parameters.indexOf(self.fieldsforfiltering[i])>0){
+				if(self.parameters.indexOf(self.fieldsforfiltering[i])>=0){
 					self.active_filters.push(self.fieldsforfiltering[i]);
 				}
 			}
@@ -1846,7 +1852,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			d3.select("#filterinputgroup").append("div")
 				.attr("class", "w2ui-field")
-				.attr("style", "position: absolute; height:15px; width:"+($(this.histoEl).width()-100)+"px; left:"+(87)+"px;")
+				.attr("style", "position: absolute; height:15px; width:"+($(this.histoEl).width()-this.shorten_width)+"px; left:"+(87)+"px;")
 				.append("input")
 				.attr("id", "filtermanager");
 
@@ -2249,7 +2255,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    	d3.select(this).call(self.axis.scale(yobj[d]));
 			    })
 
-			$("#filterinputgroup .w2ui-field").width( $(self.histoEl).width()-100 );
+			$("#filterinputgroup .w2ui-field").width( $(self.histoEl).width()-self.shorten_width );
 			$('#filtermanager').w2field('enum', { 
 				items: self.parameters, 
 				openOnFocus: true,
