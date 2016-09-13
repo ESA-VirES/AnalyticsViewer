@@ -304,7 +304,8 @@ scatterPlot.prototype.initData = function initData(){
 	this.data.forEach (function(p) {p["active"] = 1;}) ;
 
 	this.headerNames = d3.keys(self.data[0]);
-	this.headerNames.sort();
+	this.headerNames = _.sortBy(this.headerNames, function(i){return i.toLowerCase();});
+
 	this.identifiers = d3.set(self.data.map(function(d){
 		return d.id;
 	})).values();
@@ -966,7 +967,7 @@ scatterPlot.prototype.render = function(){
 	d3.select(".y.axis")
 			.append("text")
 			.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
-			.attr("class", "label")
+			.attr("class", "xaxislabel")
 			.attr("x", width - 10)
 			.attr("y", -10)
 			.style("text-anchor", "end")
@@ -1385,7 +1386,11 @@ scatterPlot.prototype.render = function(){
 		self.scatter_svg.select('.y2.axis')
 			.attr("transform", "translate("+width+",0)");
 
-		
+		// Add x scale label to y axis to make sure it is rendered over all ticks
+		self.scatter_svg.select(".xaxislabel")
+			.attr("x", width - 10)
+			.attr("transform", "translate(0," + (height-self.margin.bottom) + ")");
+
 
 	    // Update the range of the scale with new width/height
 	    self.xScale.range([0, width]);
@@ -1790,6 +1795,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				self.parameters.splice(index, 1);
 			}
 		});
+
+		self.parameters = _.sortBy(self.parameters, function(i){return i.toLowerCase();});
+
 		var buttonlabel = 'Hide filters <i class="fa fa-chevron-down" aria-hidden="true"></i>';
 		if(self.filters_hidden){
 			buttonlabel = 'Show filters <i class="fa fa-chevron-up" aria-hidden="true"></i>';
@@ -1811,6 +1819,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			this.x_hist = {};
 			this.hist_data = {};
 			this.y = {};
+			self.active_filters = _.sortBy(self.active_filters, function(i){return i.toLowerCase();});
 			this.x = d3.scale.ordinal().domain(self.active_filters).rangePoints([0, width]);
 			this.axis = d3.svg.axis().orient("left");
 
