@@ -1870,7 +1870,11 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			var that = self;
 			function handleClickedItem(evt){
 				if($(evt.originalEvent.srcElement).hasClass("erasorfunction") ||
-				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove") ||
+				   // to make sure this also works in firefox
+				   $(evt.originalEvent.originalTarget).hasClass("erasorfunction") ||
+				   $(evt.originalEvent.originalTarget).hasClass("w2ui-list-remove")
+				   ){
 
 					var index = that.active_brushes.indexOf(evt.item.id);
 					if (index > -1) {
@@ -1904,7 +1908,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			}
 
 			function handleRemovedItem(evt){
-				if($(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+				if($(evt.originalEvent.srcElement).hasClass("w2ui-list-remove") || 
+					// to make sure this also works in firefox
+					$(evt.originalEvent.originalTarget).hasClass("w2ui-list-remove")){
 
 					var index = that.active_filters.indexOf(evt.item.id);
 					if (index > -1) {

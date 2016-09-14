@@ -305,14 +305,14 @@ module.exports = function (grunt) {
         },
         release: {
             options: {
+                additionalFiles: ['bower.json'],
                 //push: false, //default: true
                 //pushTags: false, //default: true
                 npm: false, //default: true
                 tagName: 'v<%= version %>', //default: '<%= version %>'
                 tagMessage: 'Tagging version v<%= version %>', //default: 'Version <%= version %>',
                 commitMessage: 'Release v<%= version %>', //default: 'release <%= version %>'
-                github: false,
-                additionalFiles: ['bower.json']
+                github: false
             }
         },
         compress: {
