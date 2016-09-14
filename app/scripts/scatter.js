@@ -1,5 +1,16 @@
 
 
+(function () {
+    var originalIs = $.fn.is;
+    $.fn.is = function (selector) {
+        //selector = getFullSelectorIds(selector);
+        if($(this.context).attr("id")=="filtermanager" && selector==":focus"){
+        	return true;
+        }
+        return originalIs.call(this, selector);
+    };
+})(jQuery);
+
 function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
 
@@ -10,7 +21,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.margin = defaultFor(
 		args.margin,
-		{top: 50, right: 40, bottom: 35, left: 70}
+		{top: 50, right: 90, bottom: 35, left: 70}
 	);
 
 	this.histoEl = defaultFor(args.histoEl, false);
@@ -18,6 +29,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 		args.histoMargin,
 		{top: 30, right: 70, bottom: 30, left: 100}
 	);
+	this.shorten_width = defaultFor(args.shorten_width, 100);
 
 	this.uom_set = defaultFor(args.uom_set, {});
 	this.filters_hidden = false;
@@ -51,6 +63,22 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.selectedpoint = null;
 	this.residuals = false;
 	this.lineConnections = defaultFor(args.lineConnections, false);
+	this.active_filters = [];
+	this.fieldsforfiltering = defaultFor(args.fieldsforfiltering, ["F","F_error","B_N", "B_E", "B_C", "B_error","dst","kp","qdlat","mlt"]);
+
+	this.left_scale = [];
+	this.right_scale = [];
+
+	this.timeformat = d3.time.format.utc.multi([
+		[".%L", function(d) { return d.getUTCMilliseconds(); }],
+		[":%S", function(d) { return d.getUTCSeconds(); }],
+		["%H:%M", function(d) { return d.getUTCMinutes(); }],
+		["%H:%M", function(d) { return d.getUTCHours(); }],
+		["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
+		["%b %d", function(d) { return d.getUTCDate() != 1; }],
+		["%B", function(d) { return d.getUTCMonth(); }],
+		["%Y", function() { return true; }]
+	]);
 
 	this.renderBlocks = defaultFor(args.renderBlocks, false);
 
@@ -115,6 +143,22 @@ scatterPlot.prototype.analyseData = function analyseData(){
 
 }
 
+scatterPlot.prototype.createSubscript = function createSubscript(string){
+	// Adding subscript elements to string which contain underscores
+	var newkey = "";
+	var parts = string.split("_");
+	if (parts.length>1){
+		newkey = parts[0];
+		for (var i=1; i<parts.length; i++){
+			newkey+=(" "+parts[i]).sub();
+		}
+	}else{
+		newkey = string;
+	}
+
+	return newkey;
+}
+
 scatterPlot.prototype.parseData = function parseData(values){
 
 	var exp_date = /^(\d){4}-(\d){2}-(\d){2}/
@@ -143,69 +187,59 @@ scatterPlot.prototype.parseData = function parseData(values){
 
     // Filter hidden dimensions
     d3.keys(self.data[0]).filter(function(key) {
-    	// TODO temporary if to remove flags, shall be removed
-    	if ($.inArray(key, self.toIgnore) > -1 ){
-    		self.data.forEach (function(p) {delete p[key];}) ; 
-    	}else{
-	    	// Check if column is a date
-	    	if(exp_date.test(self.data[1][key])){
-	    		self.data.forEach (function(p) {
-	    			//p[key] = new Date(p[key].replace(/-/g,'/'));
-	    			p[key] = new Date(p[key]);
-	    		}) ; 
-	    		self.col_date.push(key);
-	    	// Column is vector data
-	    	}else if(self.data[1][key].charAt(0)=="{"){
-	    		self.data.forEach (function(p) {
-	    			var val = p[key].substring(1, p[key].length-1);
-	    			var vector = val.split(";");
-	    			for (var i = vector.length - 1; i >= 0; i--) {
+
+    	// Check if column is a date
+    	if(self.data[1][key].charAt(0)=="{"){
+    		self.data.forEach (function(p) {
+    			var val = p[key].substring(1, p[key].length-1);
+    			var vector = val.split(";");
+    			for (var i = vector.length - 1; i >= 0; i--) {
+    				// vector[i] = parseFloat(vector[i]);
+    				if(key == "B_NEC"){
+	    				var new_key;
+	    				switch (i){
+	    					case 0: new_key="B_N"; break;
+	    					case 1: new_key="B_E"; break;
+	    					case 2: new_key="B_C"; break;
+	    				}
+	    				//new_key = key + new_key;
+	    				if(!this.residuals)
+	    					p[new_key] = parseFloat(vector[i]);
+
+	    			}else if(key.indexOf( "B_NEC_res_" ) > -1){
 	    				// vector[i] = parseFloat(vector[i]);
-	    				if(key == "B_NEC"){
-		    				var new_key;
-		    				switch (i){
-		    					case 0: new_key="B_N"; break;
-		    					case 1: new_key="B_E"; break;
-		    					case 2: new_key="B_C"; break;
-		    				}
-		    				//new_key = key + new_key;
-		    				if(!this.residuals)
-		    					p[new_key] = parseFloat(vector[i]);
+	    				var id = key.replace("B_NEC_res_", "");
+	    				var new_key;
+	    				switch (i){
+	    					case 0: new_key=("B_N_res_"+id); break;
+	    					case 1: new_key=("B_E_res_"+id); break;
+	    					case 2: new_key=("B_C_res_"+id); break;
+	    				}
+	    				//new_key = key + new_key;
+	    				p[new_key] = parseFloat(vector[i]);
+	    			}
+    			};
+    			delete p[key];
+    			// p[key] = vector;
+    			// self.col_vec.push(key);
+    		}) ;
 
-		    			}else if(key.indexOf( "B_NEC_res_" ) > -1){
-		    				// vector[i] = parseFloat(vector[i]);
-		    				var id = key.replace("B_NEC_res_", "");
-		    				var new_key;
-		    				switch (i){
-		    					case 0: new_key=("B_N_res_"+id); break;
-		    					case 1: new_key=("B_E_res_"+id); break;
-		    					case 2: new_key=("B_C_res_"+id); break;
-		    				}
-		    				//new_key = key + new_key;
-		    				p[new_key] = parseFloat(vector[i]);
-		    			}
-	    			};
-	    			delete p[key];
-	    			// p[key] = vector;
-	    			// self.col_vec.push(key);
-	    		}) ;
-
-	    	// Check if column is a float value
-	    	/*}else if (value = parseFloat(self.data[1][key])){
-	    		self.data.forEach (function(p) {p[key] = parseFloat(p[key]);}) ;
-	    	}*/
-		    }else{
-		    	var val = +(self.data[1][key]);
-		    	if (!isNaN(val)){
-		    		self.data.forEach (function(p) {p[key] = +(p[key]);}) ;
-		    	}else{
-		    		self.col_ordinal.push(key);
-		    	}
-		    }
-		    if(this.residuals && key == "F"){
-				self.data.forEach (function(p) {delete p[key];}) ; 
-			}
+    	// Check if column is a float value
+    	/*}else if (value = parseFloat(self.data[1][key])){
+    		self.data.forEach (function(p) {p[key] = parseFloat(p[key]);}) ;
+    	}*/
+	    }else{
+	    	var val = +(self.data[1][key]);
+	    	if (!isNaN(val)){
+	    		self.data.forEach (function(p) {p[key] = +(p[key]);}) ;
+	    	}else{
+	    		self.col_ordinal.push(key);
+	    	}
+	    }
+	    if(this.residuals && key == "F"){
+			self.data.forEach (function(p) {delete p[key];}) ; 
 		}
+
 	});
 
     self.initData();
@@ -259,24 +293,25 @@ scatterPlot.prototype.initData = function initData(){
     // This is not a good way of doing this! Which parameter should be selected should be 
     // specified during instantiation.
 
-    
-
     this.sel_y = controlled_sel_y;
 
 	// Create colorscale for all available parameters
 	
-	self.parameter_colors = d3.scale.ordinal().domain(d3.keys(self.data[0])).range(self.parameter_color_range);
+	this.parameter_colors = d3.scale.ordinal().domain(d3.keys(self.data[0])).range(self.parameter_color_range);
 
 	// Add an active tag to know if row is filtered out or not, used for filtering with parallels
 	// Initially all set to true, as no filters yet active
-	self.data.forEach (function(p) {p["active"] = 1;}) ;
+	this.data.forEach (function(p) {p["active"] = 1;}) ;
 
-	self.headerNames = d3.keys(self.data[0]);
-	self.headerNames.sort();
-	self.identifiers = d3.set(self.data.map(function(d){return d.id;})).values();
+	this.headerNames = d3.keys(self.data[0]);
+	this.headerNames = _.sortBy(this.headerNames, function(i){return i.toLowerCase();});
+
+	this.identifiers = d3.set(self.data.map(function(d){
+		return d.id;
+	})).values();
 
 	//if(!self.colors)
-	self.colors = d3.scale.ordinal().domain(self.identifiers).range(d3.scale.category10().range());
+	this.colors = d3.scale.ordinal().domain(self.identifiers).range(d3.scale.category10().range());
 		
 
 	// Remove unwanted elements
@@ -331,7 +366,7 @@ scatterPlot.prototype.render = function(){
 	// Doing some cleanup as just emptyig the div does not seem to cleanup correctly
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
 		var par = this.sel_y[i];
-		d3.select('svg').selectAll(".dot_"+par).remove();
+		d3.select(this.scatterEl).selectAll(".dot_"+par).remove();
 
 	};
 
@@ -339,6 +374,7 @@ scatterPlot.prototype.render = function(){
     d3.select("#save").remove();
     d3.select("#pngdataurl").remove();
     d3.select("#grid").remove();
+    d3.select("#imagerenderer").remove();
 
     d3.selectAll(".SumoSelect").remove();
 
@@ -393,7 +429,7 @@ scatterPlot.prototype.render = function(){
 
 		c.toBlob(function(blob) {
 			saveAs(blob, "Analytics.png");
-		}, "image/png");
+		}, "image/png" ,1);
 
 	});
 
@@ -420,13 +456,12 @@ scatterPlot.prototype.render = function(){
 
 	    var y_select = d3.select(this.scatterEl)
 				.insert("div")
+				.attr("id", "yselectiondropdown")
 				.attr("style", "position: absolute;"+
-					"margin-left:"+(this.margin.left + 10)+
+					"margin-left:"+(this.margin.left)+
 					"px; margin-top:"+(this.margin.top-40)+"px;")
 				.append("select")
 					.attr("multiple", "multiple");
-
-			
 
 		y_select.selectAll("option")
 			.data(this.headerNames)
@@ -456,13 +491,12 @@ scatterPlot.prototype.render = function(){
 
 
 		$(".SumoSelect").change(function(evt){
-
-			var sel_y = [];
-			_.each($(this).find(".optWrapper .selected"), function(elem){
-				sel_y.push(elem.dataset.val);
+			var objs = [];
+			$('#yselectiondropdown option:selected').each(function(i) {
+				objs.push($(this).val());
 			});
 
-			self.sel_y = sel_y;
+			self.sel_y = objs;
 			self.render();
 			self.parallelsPlot();
 		
@@ -478,7 +512,7 @@ scatterPlot.prototype.render = function(){
 		.attr("style", 'width: 100%;height: 100%;')
 		
 
-	var svg = svg_container.append("svg")
+	this.scatter_svg = svg_container.append("svg")
 		.attr("class", "scatter")
 	  	.append("g")
 	    .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
@@ -490,7 +524,7 @@ scatterPlot.prototype.render = function(){
 			.insert("div")
 				.attr("class", "xselectdropdown")
 				.attr("style", "position: relative; float:right;"+
-					"width:120px;"+"bottom:45px; right:160px")
+					"width:120px;"+"bottom:55px; right:"+(this.margin.right+127)+"px;")
 				.append("select")
 					.attr("style", "width: 250px;");
 
@@ -521,12 +555,13 @@ scatterPlot.prototype.render = function(){
 				return newkey; 
 			});
 
-		$(x_select).SumoSelect({ okCancelInMulti: false });
+		$(x_select).SumoSelect({ okCancelInMulti: false, up: true });
 
 
 		$(".xselectdropdown").find(".SumoSelect").change(function(evt){
 
-			self.sel_x = $(this).find(".optWrapper .selected").data().val;
+			self.sel_x = $(this).find("option:selected").val();
+			
 			self.render();
 			self.parallelsPlot();
 		
@@ -536,29 +571,20 @@ scatterPlot.prototype.render = function(){
 
 	// Definition X scale, domain and format
 
-	var xScale, format_x;
+	var format_x;
 
 	if (this.col_date.indexOf(this.sel_x) != -1){
-		xScale = d3.time.scale.utc().range([0, width]);
-		format_x = d3.time.format.utc.multi([
-		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
-		    [":%S", function(d) { return d.getUTCSeconds(); }],
-		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
-		    ["%H:%M", function(d) { return d.getUTCHours(); }],
-		    //["%d %m", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
-		    ["%d.%m.%Y", function(d) { return d.getUTCDate() != 1; }],
-		    ["%B", function(d) { return d.getUTCMonth(); }],
-		    ["%Y", function() { return true; }]
-		 ]);
+		self.xScale = d3.time.scale.utc().range([0, width]);
+		format_x = this.timeformat;
 	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
-		xScale = d3.scale.ordinal().rangePoints([0, width]);
+		self.xScale = d3.scale.ordinal().rangePoints([0, width]);
 	}else{
-		xScale = d3.scale.linear().range([0, width]);
+		self.xScale = d3.scale.linear().range([0, width]);
 		//format_x = d3.format('.3g');
 	}
 
-	var xAxis = d3.svg.axis()
-	    .scale(xScale)
+	self.xAxis = d3.svg.axis()
+	    .scale(self.xScale)
 	    .orient("bottom")
 	    .tickFormat(format_x);
 
@@ -574,11 +600,11 @@ scatterPlot.prototype.render = function(){
 			length_array.push(vec_length);
 		});
 
-		xScale.domain(d3.extent(length_array, function(d) { 
+		self.xScale.domain(d3.extent(length_array, function(d) { 
 		 	return d;
 		})).nice();
 	}else if(this.col_ordinal.indexOf(this.sel_x) != -1){
-		xScale.domain(this.data.map(function(d) { 
+		self.xScale.domain(this.data.map(function(d) { 
 			return d[self.sel_x]; 
 		}));
 	}else if(this.col_date.indexOf(this.sel_x) != -1){
@@ -590,7 +616,7 @@ scatterPlot.prototype.render = function(){
 		var domainBuffer = (Math.abs(tmp_domain[1].getTime()-tmp_domain[0].getTime())/100)*5;
 		var niceDomain = [new Date(tmp_domain[0].getTime()-domainBuffer), new Date(tmp_domain[1].getTime()+domainBuffer)];
 
-		xScale.domain(niceDomain);
+		self.xScale.domain(niceDomain);
 	}else{
 		var tmp_domain = d3.extent(this.data, function(d) { 
 		 	return d[self.sel_x];
@@ -600,138 +626,247 @@ scatterPlot.prototype.render = function(){
 		var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
 		var niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
 
-		xScale.domain(niceDomain);
+		self.xScale.domain(niceDomain);
 
 	}
 
-
-	
-	
 	// Definition Y scale, domain and format
 	// Can have multiple parameters selected so we have to iterate
 	// through possible selections
 
-	var yScale, format_y;
+	var format_y_left, format_y_right;
 
-	// Use first selected element of y axis as definer for axis domain and scale
+	this.left_scale = [];
+	this.right_scale = [];
 
-	var firstYSelection = this.sel_y[0];
+	// Use median to decide which scale to use for various parameters
 
-	if (this.col_date.indexOf(firstYSelection) != -1){
-		yScale = d3.time.scale.utc().range([height-this.margin.bottom, 0]);
-		format_y = d3.time.format.utc.multi([
-		    [".%L", function(d) { return d.getUTCMilliseconds(); }],
-		    [":%S", function(d) { return d.getUTCSeconds(); }],
-		    ["%H:%M", function(d) { return d.getUTCMinutes(); }],
-		    ["%H:%M", function(d) { return d.getHours(); }],
-		    ["%a %d", function(d) { return d.getUTCDay() && d.getDate() != 1; }],
-		    ["%b %d", function(d) { return d.getUTCDate() != 1; }],
-		    ["%B", function(d) { return d.getUTCMonth(); }],
-		    ["%Y", function() { return true; }]
-		 ]);
-	}else if(this.col_ordinal.indexOf(firstYSelection) != -1){
-		yScale = d3.scale.ordinal().rangePoints([height-this.margin.bottom, 0]);
-	}else{
-		yScale = d3.scale.linear().range([height-this.margin.bottom, 0]);
-		//format_y = d3.format('.3g');
-	}
+	// TODO: Sort and use biggest jump in range as divider
 
-	var yAxis = d3.svg.axis()
-	    .scale(yScale)
-	    .orient("left")
-	    .tickFormat(format_y);
+	if (this.sel_y.length == 1){
 
-
-	for (var i = this.sel_y.length - 1; i >= 0; i--) {
-
-		var tmp_domain, niceDomain;
-		var par = this.sel_y[i];
+		var domain;
+		var par = this.sel_y[0];
+		self.left_scale.push(self.sel_y[0]);
 
 		if(this.col_ordinal.indexOf(par) != -1){
-			tmp_domain = this.data.map(function(d) { 
+			domain = this.data.map(function(d) { 
 				return d[par]; 
 			});
 		}else{
-			tmp_domain = d3.extent(this.data, function(d) { 
+			domain = d3.extent(this.data, function(d) { 
 			 	return d[par];
 			});
 		}
+		var d_max1 = domain[1];
+		var d_min1 = domain[0];
 
+	//}else if (this.sel_y.length == 2){
 
+	}else if (this.sel_y.length >= 2){
 
-		if (tmp_domain[0] instanceof Date){
-			// If domain is temporal just return as is
-			niceDomain = tmp_domain;
+		var domains = [];
 
-		}else{
+		for (var i = 0; i < this.sel_y.length; i++) {
 
-			// If the parameter minimum is bigger then a previously set minimum and the 
-			// currently set minimum is not the default 0 overwrite it
-			if(tmp_domain[0] > yScale.domain()[0] && yScale.domain()[0] != 0){
-				tmp_domain[0] = yScale.domain()[0];
+			var sel = this.sel_y[i];
+			var d = d3.extent(this.data, function(d) { 
+				return d[sel];
+			});
+
+			domains.push({
+				parameter: sel,
+				domain: d,
+				extent: Math.abs(d[1]-d[0])
+			});
+		}
+		// Sort by domain size
+		domains = _.sortBy(domains, 'extent');
+
+		// Take maximum and minimum extent for left and right and check the
+		// others to see where they fit better
+
+		var min_ext = domains[0];
+		var max_ext = domains[domains.length-1];
+
+		self.left_scale.push(max_ext.parameter);
+		self.right_scale.push(min_ext.parameter);
+
+		// Go through products between first and last and decide where to add them
+		for (var i = 1; i < domains.length-1; i++) {
+
+			var dif_to_min = Math.abs(domains[i].extent / min_ext.extent);
+			//var dif_to_max = Math.abs(domains[i].extent / max_ext.extent);
+			// We can check if the covered extent is much higher (300 times) the one
+			// covered by the minimum, we should add it to the high value scale (left)
+			// There is really no solution if there more then two very different extents
+			if(dif_to_min > 300){
+				self.left_scale.push(domains[i].parameter);
+			}else{
+				self.right_scale.push(domains[i].parameter);
 			}
-			// If the parameter maximum is lower then a previously set maximum overwrite it
-			// and the currently set maximum is not the default 1 overwrite it
-			if(tmp_domain[1] < yScale.domain()[1] && yScale.domain()[1] != 1){
-				tmp_domain[1] = yScale.domain()[1];
-			}
-			// 5% buffer so points are not drawn exactly on axis
-			var domainBuffer = (Math.abs(tmp_domain[1]-tmp_domain[0])/100)*5;
-			niceDomain = [tmp_domain[0]-domainBuffer, tmp_domain[1]+domainBuffer];
 		}
 
-		yScale.domain(niceDomain);
+		// Take the maximum and the minimum of both collections (separated by median)
+		// to use as overall domain on each scale
+		var d_max1 = d3.max(domains, function(d, i){
+			if (self.left_scale.indexOf(d.parameter) != -1){
+				return d.domain[1];
+			}
+		});
+		var d_min1 = d3.min(domains, function(d, i){
+			if (self.left_scale.indexOf(d.parameter) != -1){
+				return d.domain[0];
+			}
+		});
+		var d_max2 = d3.max(domains, function(d, i){
+			if (self.right_scale.indexOf(d.parameter) != -1){
+				return d.domain[1];
+			}
+		});
+		var d_min2 = d3.min(domains, function(d, i){
+			if (self.right_scale.indexOf(d.parameter) != -1){
+				return d.domain[0];
+			}
+		});
+		
+	}
+
+	function getSelectionScale(selection){
+		var scale;
+		if (self.col_date.indexOf(selection) != -1){
+			scale = d3.time.scale.utc().range([height-self.margin.bottom, 0]);
+		}else if(self.col_ordinal.indexOf(selection) != -1){
+			scale = d3.scale.ordinal().rangePoints([0, height-self.margin.bottom]);
+		}else{
+			scale = d3.scale.linear().range([0, height-self.margin.bottom]);
+		}
+		return scale;
 	};
 
+	self.yScale_left = getSelectionScale(this.left_scale[0]);
+	
 
+	self.yAxis_left = d3.svg.axis()
+		.scale(self.yScale_left)
+		.orient("left");
+
+	if (self.col_date.indexOf(this.left_scale[0]) != -1){
+		format_y_left = this.timeformat;
+		self.yAxis_left.tickFormat(format_y_left);
+		self.yScale_left.domain([d_max1, d_min1]);
+	}else{
+		// 5% buffer so points are not drawn exactly on axis
+		// only if scale is not time scale
+		var domainBuffer = (Math.abs(d_max1-d_min1)/100)*5;
+		self.yScale_left.domain([d_max1+domainBuffer, d_min1-domainBuffer]);
+	}
+
+	self.yAxis_right = null;
+
+	if (this.right_scale.length>0){
+
+		self.yScale_right = getSelectionScale(this.right_scale[0]);
+		// 5% buffer so points are not drawn exactly on axis
+		var domainBuffer = (Math.abs(d_max2-d_min2)/100)*5;
+		self.yScale_right.domain([d_max2+domainBuffer, d_min2-domainBuffer]);
+
+		self.yAxis_right = d3.svg.axis()
+			.scale(self.yScale_right)
+			.orient("right");
+
+		if (self.col_date.indexOf(this.right_scale[0]) != -1){
+			format_y_right = this.timeformat;
+			self.yAxis_right.tickFormat(format_y_right);
+		}
+	}
 
 	// Define zoom behaviour based on parameter dependend x and y scales
 	var xyzoom = d3.behavior.zoom()
-      .x(xScale)
-      .y(yScale)
-      .on("zoom", zoomed);
+      .x(self.xScale)
+      .y(self.yScale_left)
+      .on("zoom", multizoomed);
 
     var xzoom = d3.behavior.zoom()
-      .x(xScale)
+      .x(self.xScale)
       .on("zoom", zoomed);
 
     var yzoom = d3.behavior.zoom()
-      .y(yScale)
+      .y(self.yScale_left)
       .on("zoom", zoomed);
 
+    if(self.right_scale.length > 0){
+	    var y2zoom = d3.behavior.zoom()
+	      .y(self.yScale_right)
+	      .on("zoom", zoomed);
+	}
+
 	// Add clip path so only points in the area are shown
-	var clippath = svg.append("defs").append("clipPath")
+	var clippath = this.scatter_svg.append("defs").append("clipPath")
 		.attr("id", "clip")
 	    .append("rect")
 	        .attr("width", width)
 	        .attr("height", (height-this.margin.bottom));
 
 	function zoomed() {
-		svg.select(".x.axis").call(xAxis);
-		svg.select(".y.axis").call(yAxis);
-		zoom_update();
-		resize();
 
+		self.scatter_svg.select(".x.axis").call(self.xAxis);
+		self.scatter_svg.select(".y.axis").call(self.yAxis_left);
+
+
+		xyzoom = d3.behavior.zoom()
+				.x(self.xScale)
+				.y(self.yScale_left)
+				.on("zoom", multizoomed);
+
+		if(self.right_scale.length > 0){
+			self.scatter_svg.select(".y2.axis").call(self.yAxis_right);
+			y2zoom = d3.behavior.zoom()
+				.y(self.yScale_right)
+				.on("zoom", zoomed);
+		}
+
+		self.scatter_svg.select('rect.zoom.xy.box').call(xyzoom);
+
+		
+		self.updatedots();
+		self.updateTicks();
+		zoom_update();
+
+	}
+
+	function multizoomed(){
+
+		self.scatter_svg.select(".x.axis").call(self.xAxis);
+		self.scatter_svg.select(".y.axis").call(self.yAxis_left);
+
+		if(self.right_scale.length > 0){
+			y2zoom.scale(xyzoom.scale()).translate(xyzoom.translate());
+		}
+		//self.scatter_svg.select(".y2.axis").call(self.yAxis_right);
+
+		xzoom = d3.behavior.zoom()
+			.x(self.xScale)
+			.on("zoom", zoomed);
+		yzoom = d3.behavior.zoom()
+			.y(self.yScale_left)
+			.on("zoom", zoomed);
+
+		self.updatedots();
+		self.updateTicks();
+		zoom_update();
 	}
 
 
 	// Update zoom methods
-	function zoom_update() {
-      xyzoom = d3.behavior.zoom()
-        .x(xScale)
-        .y(yScale)
-        .on("zoom", zoomed);
-      xzoom = d3.behavior.zoom()
-        .x(xScale)
-        .on("zoom", zoomed);
-      yzoom = d3.behavior.zoom()
-        .y(yScale)
-        .on("zoom", zoomed);
+	function zoom_update(multi) {
 
-      svg.select('rect.zoom.xy.box').call(xyzoom);
-      svg.select('rect.zoom.x.box').call(xzoom);
-      svg.select('rect.zoom.y.box').call(yzoom);
-    }
+		self.scatter_svg.select('rect.zoom.x.box').call(xzoom);
+		self.scatter_svg.select('rect.zoom.y.box').call(yzoom);
+		if(self.right_scale.length > 0){
+			self.scatter_svg.select('rect.zoom.y2.box').call(y2zoom);
+		}
+	}
 
 
 	this.gridselector.on("click", function() {
@@ -739,97 +874,86 @@ scatterPlot.prototype.render = function(){
 		// If grid is selected we expand the tick size to cover the whole plot
 		if(self.grid_active){
 
-			svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
+			self.scatter_svg.selectAll('.axis line')
+		      	.attr("stroke-width", "1")
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#D3D3D3");
 
-			xAxis.tickSize(-(self.height-self.margin.bottom));
-			yAxis.tickSize(-self.width);
+			self.xAxis.tickSize(-(self.height-self.margin.bottom));
+			self.yAxis_left.tickSize(-self.width);
 			
 
 		}else{
-			xAxis.tickSize(5);
-			yAxis.tickSize(5);
+			self.xAxis.tickSize(5);
+			self.yAxis_left.tickSize(5);
 
-			svg.selectAll('.axis line')
+			self.scatter_svg.selectAll('.axis line')
 		      	.attr("stroke-width", "2")
 		      	.attr("shape-rendering", "crispEdges")
 		      	.attr("stroke", "#000");
 		}
 
 		// Update Axis to draw lines
-		svg.select('.x.axis')
-	      .call(xAxis);
+		self.scatter_svg.select('.x.axis')
+	      .call(self.xAxis);
 
-	    svg.select('.y.axis')
-	      .call(yAxis);
+	    self.scatter_svg.select('.y.axis')
+	      .call(self.yAxis_left);
+
+		if(self.yAxis_right){
+			self.scatter_svg.select('.y2.axis')
+			.call(self.yAxis_right);
+		}
+
 	});
 
 	// Renaming of selected key introducing subscript
-	var newkey = "";
+	var x_key = "";
 	var parts = this.sel_x.split("_");
 	if (parts.length>1){
-		newkey = "<tspan>"+parts[0]+"</tspan>";
+		x_key = "<tspan>"+parts[0]+"</tspan>";
 		for (var i=1; i<parts.length; i++){
 			var modifier = "";
 			if(i==1)
 				modifier = ' dy="5"';
-			newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
+			x_key+='<tspan style="font-size:10px;"'+modifier+'> '+parts[i]+'</tspan>';
 		}
 	}else{
-		newkey = this.sel_x;
+		x_key = this.sel_x;
 	}
 
 	if(this.uom_set.hasOwnProperty(this.sel_x)){
-		newkey += " ("+this.uom_set[this.sel_x]+") ";
+		x_key += " ("+this.uom_set[this.sel_x].uom+") ";
 	}
 
 	// Add ticks for X axis
-	svg.append("g")
+	self.scatter_svg.append("g")
 		.attr("class", "x axis")
 		.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
-		.call(xAxis)
-		.append("text")
-			.attr("class", "label")
-			.attr("x", width - 10)
-			.attr("y", -10)
-			.style("text-anchor", "end")
-			.html(newkey);
+		.call(self.xAxis);
 
-	// Renaming of selected key introducing subscript
-	var combinednewkey = [];
-	for (var i = 0; i < this.sel_y.length; i++) {
+
+	var paras_left = [];
+	for (var i = 0; i < self.left_scale.length; i++) {
 		var newkey = "";
-		var parts = this.sel_y[i].split("_");
+		var parts = self.left_scale[i].split("_");
 		if (parts.length>1){
-			/*newkey = "<tspan>"+parts[0]+"</tspan>";
-			for (var j=1; j<parts.length; j++){
-				var modifier = "";
-				if(j==1)
-					modifier = ' dy="5"';
-				newkey+='<tspan style="font-size:10px;"'+modifier+'> '+parts[j]+'</tspan>';
-			}*/
 			newkey = parts.join(" ");
 		}else{
-			newkey = this.sel_y[i];
+			newkey = self.left_scale[i];
 		}
-		if(this.uom_set.hasOwnProperty(this.sel_y[i])){
-			newkey += " ("+this.uom_set[this.sel_y[i]]+") ";
+		if(self.uom_set.hasOwnProperty(self.left_scale[i])){
+			newkey += " ("+self.uom_set[self.left_scale[i]].uom+") ";
 		}
-		combinednewkey.push(newkey);
+		paras_left.push(newkey);
 	};
+	paras_left = paras_left.join("; ");
+	paras_left = paras_left.replace(/(?!^)dy="5"/g, '');
 
-	combinednewkey = combinednewkey.join("; ");
-
-	combinednewkey = combinednewkey.replace(/(?!^)dy="5"/g, '');
-
-	
-
-	// Add ticks for Y axis
-	svg.append("g")
+	// Add ticks and label for Y axis
+	self.scatter_svg.append("g")
 		.attr("class", "y axis")
-		.call(yAxis)
+		.call(self.yAxis_left)
 		.append("text")
 			.attr("class", "label")
 			.attr("x", -10)
@@ -837,54 +961,60 @@ scatterPlot.prototype.render = function(){
 			.attr("y", 6)
 			.attr("dy", "1em")
 			.style("text-anchor", "end")
-			.html(combinednewkey);
+			.html(paras_left);
+
+	// Add x scale label to y axis to make sure it is rendered over all ticks
+	d3.select(".y.axis")
+			.append("text")
+			.attr("transform", "translate(0," + (height-this.margin.bottom) + ")")
+			.attr("class", "xaxislabel")
+			.attr("x", width - 10)
+			.attr("y", -10)
+			.style("text-anchor", "end")
+			.html(x_key);
 
 
-	// In order to work with the canvas renderer styles need to be applied directlo
-	// to svg elements instead of using a stile. Here we set stroke width and color 
-	// for all ticks and axis paths
-	svg.selectAll('.axis .domain')
-      	.attr("stroke-width", "2")
-      	.attr("stroke", "#000")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("fill", "none");
+	if(self.right_scale){
 
-    svg.selectAll('.axis path')
-      	.attr("stroke-width", "2")
-      	.attr("shape-rendering", "crispEdges")
-      	.attr("stroke", "#000");
+		var paras_right = [];
+		for (var i = 0; i < self.right_scale.length; i++) {
+			var newkey = "";
+			var parts = self.right_scale[i].split("_");
+			if (parts.length>1){
+				newkey = parts.join(" ");
+			}else{
+				newkey = self.right_scale[i];
+			}
+			if(self.uom_set.hasOwnProperty(self.right_scale[i])){
+				newkey += " ("+self.uom_set[self.right_scale[i]].uom+") ";
+			}
+			paras_right.push(newkey);
+		};
+		paras_right = paras_right.join("; ");
+		paras_right = paras_right.replace(/(?!^)dy="5"/g, '');
 
-    // Check if grid active and adapt style accordingly
-  	if(self.grid_active){
-
-		svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#D3D3D3");
-
-		xAxis.tickSize(-(height-self.margin.bottom));
-		yAxis.tickSize(-width);
-		
-
-	}else{
-		xAxis.tickSize(5);
-		yAxis.tickSize(5);
-
-		svg.selectAll('.axis line')
-	      	.attr("stroke-width", "2")
-	      	.attr("shape-rendering", "crispEdges")
-	      	.attr("stroke", "#000");
+		// Add ticks for Y2 axis
+		if(self.right_scale.length > 0){
+			self.scatter_svg.append("g")
+				.attr("class", "y2 axis")
+				.attr("transform", "translate("+width+",0)")
+				.call(self.yAxis_right)
+				.append("text")
+					.attr("class", "label")
+					.attr("x", -10 )
+					.attr("transform", "rotate(-90)")
+					.attr("y", -20)
+					.attr("dy", "1em")
+					.style("text-anchor", "end")
+					.html(paras_right);
+			}
 	}
 
-	// Update Axis to draw lines
-	svg.select('.x.axis')
-      .call(xAxis);
+	self.updateTicks();
 
-    svg.select('.y.axis')
-      .call(yAxis);
 
     // Add rect to allow zoom and pan interaction over complete graph
-	svg.append("rect")
+	self.scatter_svg.append("rect")
 		.attr("width", width)
 		.attr("height", height-self.margin.bottom)
 		.attr("class", "zoom xy box")
@@ -900,7 +1030,7 @@ scatterPlot.prototype.render = function(){
 
 	if(!self.renderBlocks){
 		for (var i = this.sel_y.length - 1; i >= 0; i--) {
-			renderdots(this.sel_y[i]);
+			self.renderdots(this.sel_y[i]);
 			renderlines(this.sel_y[i]);
 		};
 	}else{
@@ -915,15 +1045,15 @@ scatterPlot.prototype.render = function(){
 			// Create line function necessary for line rendering
 			var line_func = d3.svg.line()
 				.x(function(d) { 
-					return xScale(d[self.sel_x]); 
+					return self.xScale(d[self.sel_x]); 
 				})
 				.y(function(d) { 
-					return yScale(d[parameter]); 
+					return self.yAxis_left(d[parameter]); 
 				});
 
-			svg.selectAll(".line_"+parameter).remove();
+			self.scatter_svg.selectAll(".line_"+parameter).remove();
 
-			svg.append("path")
+			self.scatter_svg.append("path")
 				.attr("class", "area").attr("clip-path", "url(#clip)")
 				.attr("class", "line_"+parameter)
 				.attr("d", line_func(self.data))
@@ -952,25 +1082,25 @@ scatterPlot.prototype.render = function(){
 
 		colorAxis.tickFormat(d3.format(".3e"));
 
-		var g = svg.append("g")
+		var g = self.scatter_svg.append("g")
 			.attr("class", "color axis")
 			.attr("transform", "translate(" + (width+40) + " ,0)")
 			.call(colorAxis);
 
-		svg.selectAll('.color.axis path')
+		self.scatter_svg.selectAll('.color.axis path')
 			.attr("fill", "none")
 			.attr("shape-rendering", "crispEdges")
 			.attr("stroke", "#000")
 			.attr("stroke-width", "2");
 
-		svg.selectAll('.color.axis line')
+		self.scatter_svg.selectAll('.color.axis line')
 			.attr("stroke-width", "2")
 			.attr("shape-rendering", "crispEdges")
 			.attr("stroke", "#000");
 
 		var image = this.plotter.getColorScaleImage().toDataURL("image/jpg");
 
-		svg.append("image")
+		self.scatter_svg.append("image")
 			.attr("class", "colorscaleimage")
 			.attr("width",  height-self.margin.bottom)
 			.attr("height", 20)
@@ -983,7 +1113,7 @@ scatterPlot.prototype.render = function(){
 	function binData(){
 
 		// Bin heights uniformly together creating average for height interval
-		var ticks = yScale.ticks(70);
+		var ticks = self.yAxis_left.ticks(70);
 		var binned_data = [];
 
 		// Create empty bins
@@ -1068,7 +1198,7 @@ scatterPlot.prototype.render = function(){
 		//var r_height = Math.round((self.height - self.margin.bottom)/137);
 
 		var parameter = self.sel_y[0];
-		svg.selectAll(".datarectangle")
+		self.scatter_svg.selectAll(".datarectangle")
 			.data(self.data)
 			.enter().append("rect")
 			.attr("class", "area").attr("clip-path", "url(#clip)")
@@ -1077,27 +1207,27 @@ scatterPlot.prototype.render = function(){
 				if(self.daily_products){
 					var t = d.starttime;
 					t.setUTCHours(0,0,0,0);
-					return xScale(t); 
+					return self.xScale(t); 
 				}else{
-					return xScale(d.starttime); 
+					return self.xScale(d.starttime); 
 				}
 			})
 			.attr("y",function(d) { 
-				return yScale(d.max_height); 
+				return self.yAxis_left(d.max_height); 
 			})
 			.attr("width", function(d) { 
 				if(self.daily_products){
 					var t = d.starttime;
 					t.setUTCHours(23,59,59,999);
-					var x_max = xScale(t); 
+					var x_max = self.xScale(t); 
 					t.setUTCHours(0,0,0,0);
-					return (x_max-xScale(t));
+					return (x_max-self.xScale(t));
 				}else{
-					return (xScale(d.endtime)-xScale(d.starttime));
+					return (self.xScale(d.endtime)-self.xScale(d.starttime));
 				}
 			})
 			.attr("height", function(d){
-				return (yScale(d.min_height)-yScale(d.max_height));
+				return (self.yAxis_left(d.min_height)-self.yAxis_left(d.max_height));
 			})
 
 			.style("fill", function(d) {
@@ -1178,127 +1308,6 @@ scatterPlot.prototype.render = function(){
 			});
 	};
 
-	function renderdots(parameter){
-		svg.selectAll(".dot_"+parameter)
-			.data(self.data)
-			.enter().append("circle")
-			.attr("class", "area").attr("clip-path", "url(#clip)")
-			.attr("class", "dot_"+parameter)
-			/*.style("display", function(d) {
-				return !d["active"] ? "none" : null;
-			})*/
-			.attr("r", 3.5)
-
-			.attr("cx", function(d) { 
-				return xScale(d[self.sel_x]); 
-			})
-
-			.attr("cy", function(d) { 
-				return yScale(d[parameter]); 
-			 })
-			.style("fill", function(d) { 
-				if (d["active"]){
-					return self.parameter_colors(parameter);
-				}else{
-					return 'rgba(50,50,50,0.3)';
-				}
-			})
-			.style("fill-opacity", function(d) { 
-				if (d["active"]){
-					return 1;
-				}else{
-					return 0.15;
-				}
-			})
-			.style("stroke", function(d) {
-				if (d["active"]){
-					return self.colors(d.id); 
-				}else{
-					return 'rgba(50,50,50,0.3)';
-				}
-			})
-			.style("stroke-width", 1)
-
-			.on("mouseover", function(d) {
-				$(this).attr("r",7);
-
-	        })  
-
-	        .on("click", function(d) {
-
-	        	if (self.selectedpoint != null){
-	        		self.selectedpoint.attr("r",3.5);
-	        		self.selectedpoint = null;
-	        	}
-
-				self.openinfo(d);
-
-				self.selectedpoint = $(this);
-
-				var values = "";
-				for(var propName in d) {
-				    propValue = d[propName]
-				    if (propValue instanceof Date){
-				    	propValue = propValue.toISOString();
-				    }
-				    if(propName != "active"){
-					    values = values + propName + ": " + propValue + "<br>";
-					}
-				}
-				values = '<br>'+values;
-
-	            self.tooltip.transition()
-	                .duration(100)
-	                .style("display", "block");
-	            self.tooltip.html(values)
-	                .style("left", (d3.event.pageX + 10) + "px")
-	                .style("top", (d3.event.pageY + 3) + "px");
-
-	            // Add close button
-	            var closeArea = self.tooltip.append('text')
-					.text('X')
-					.attr("style", "position:absolute; right:13px; top:4px; cursor:pointer;")
-					.attr("font-family", "sans-serif")
-					.attr("font-size", "20px");
-
-				closeArea.on("click", function(){
-					self.tooltip.transition()        
-	                	.duration(100)
-	                	.style("display", "none");
-	                	self.selectedpoint.attr("r",3.5);
-	        			self.selectedpoint = null;
-	        			self.openinfo(null);
-				});
-	            
-	            // Close tooltip if interaction is done anywhere else.
-	            $(document).on("mousedown", function(e){
-	            	if (e.target.nodeName!="circle" && e.target.className!="AV-point-tooltip"){
-	            		if(self.selectedpoint){
-	            			self.tooltip.transition()        
-			                	.duration(100)      
-			                	.style("display", "none");
-		                	self.selectedpoint.attr("r",3.5);
-		        			self.selectedpoint = null;
-		        			self.openinfo(null);
-	            		}
-	            		
-	            	}
-	            });
-
-				
-	        })
-
-	        .on("mouseout", function(d){
-        		if(self.selectedpoint == null) 
-        			$(this).attr("r",3.5);
-        		else if (self.selectedpoint[0] !== $(this)[0])
-        			$(this).attr("r",3.5);
-	        });
-
-
-    };
-
-
     // Add legend for all displayed combinations if not using render blocks attribute
 
 	if (!self.renderBlocks) {
@@ -1307,8 +1316,8 @@ scatterPlot.prototype.render = function(){
 		for (var i = this.sel_y.length - 1; i >= 0; i--) {
 
 			// Add legend for available unique identifiers in loaded csv data
-			var legend = svg.selectAll(".legend_"+self.sel_y[i])
-				.data(this.identifiers)
+			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i])
+				.data(self.identifiers)
 				.enter().append("g")
 				.attr("class", "legend_"+self.sel_y[i])
 				.attr("transform", function(d,n) { 
@@ -1317,7 +1326,7 @@ scatterPlot.prototype.render = function(){
 
 			// Add a rectangle with the corresponding color for the legend
 			legend.append("circle")
-				.attr("cx", width - 15)
+				.attr("cx", width - 25)
 				.attr("cy", 9)
 				.attr("r", 4)
 				.style("fill", function(d) { return self.parameter_colors(self.sel_y[i]); })
@@ -1325,7 +1334,7 @@ scatterPlot.prototype.render = function(){
 
 			// Add identifier as text to label element
 			legend.append("text")
-				.attr("x", width - 24)
+				.attr("x", width - 34)
 				.attr("y", 9)
 				.attr("dy", ".35em")
 				.style("text-anchor", "end")
@@ -1339,10 +1348,9 @@ scatterPlot.prototype.render = function(){
 		};
 	}
 
-	svg.selectAll('text').style("font", "400 13px Arial");
-    svg.selectAll('text').style("fill", "black");
-    svg.selectAll('text').style("stroke", "none");
-
+	self.scatter_svg.selectAll('text').style("font", "400 13px Arial");
+    self.scatter_svg.selectAll('text').style("fill", "black");
+    self.scatter_svg.selectAll('text').style("stroke", "none");
 
 	// Resize method, recalculates position of all elements in svg
 	function resize() {
@@ -1352,81 +1360,73 @@ scatterPlot.prototype.render = function(){
 	 	self.height = height;
 		self.width = width;
 
-	 	svg.select("#clip").selectAll("rect")
+	 	self.scatter_svg.select("#clip").selectAll("rect")
 	 		.attr("width", width)
 	        .attr("height", (height-self.margin.bottom));
 
 	 	// Update zoom and pan handles size
-		svg.select('rect.zoom.xy.box')
+		self.scatter_svg.select('rect.zoom.xy.box')
 			.attr("width", width)
 			.attr("height", height-self.margin.bottom);
 
-		svg.select('rect.zoom.x.box')
+		self.scatter_svg.select('rect.zoom.x.box')
 			.attr("width", width)
 			.attr("height", self.margin.bottom)
 			.attr("transform", "translate(" + 0 + "," + (height - self.margin.bottom) + ")");
 
-		svg.select('rect.zoom.y.box')
+		self.scatter_svg.select('rect.zoom.y.box')
 			.attr("width", self.margin.left)
 			.attr("height", height - self.margin.bottom);
 
+		self.scatter_svg.select('rect.zoom.y2.box')
+			.attr("width", self.margin.left)
+			.attr("height", height - self.margin.bottom)
+			.attr("transform", "translate(" + width + ",0)");
+
+		self.scatter_svg.select('.y2.axis')
+			.attr("transform", "translate("+width+",0)");
+
+		// Add x scale label to y axis to make sure it is rendered over all ticks
+		self.scatter_svg.select(".xaxislabel")
+			.attr("x", width - 10)
+			.attr("transform", "translate(0," + (height-self.margin.bottom) + ")");
+
+
 	    // Update the range of the scale with new width/height
-	    xScale.range([0, width]);
-	    yScale.range([(height-self.margin.bottom), 0]);
+	    self.xScale.range([0, width]);
+	    self.yScale_left.range([0, (height-self.margin.bottom)]);
+	    if(self.right_scale.length > 0){
+	    	self.yScale_right.range([0, (height-self.margin.bottom)]);
+	    }
+
 
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
+	    	//var par = self.sel_y[i]
 		    // Update legend for available unique identifiers
-			var legend = svg.select(".legend_"+self.sel_y[i])
+			var legend = self.scatter_svg.select(".legend_"+self.sel_y[i])
 			legend.select("circle")
-				.attr("cx", width - 15)
+				.attr("cx", width - 25)
 			
 			legend.select("text")
-				.attr("x", width - 24)
+				.attr("x", width - 34)
 		}
 
-	   
-
-	    // update x axis label position
-	    svg.select('.x.axis')
-	    	.select('.label')
-	    	.attr("x", width - 10);
-
-
-	    if(self.grid_active){
-
-			svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
-		      	.attr("shape-rendering", "crispEdges")
-		      	.attr("stroke", "#D3D3D3");
-
-			xAxis.tickSize(-(height-self.margin.bottom));
-			yAxis.tickSize(-width);
-			
-
-		}else{
-			xAxis.tickSize(5);
-			yAxis.tickSize(5);
-
-			svg.selectAll('.axis line')
-		      	.attr("stroke-width", "2")
-		      	.attr("shape-rendering", "crispEdges")
-		      	.attr("stroke", "#000");
-		}
+		self.updateTicks();
 
 		// Update the axis with the new scale
-	    svg.select('.x.axis')
+	    self.scatter_svg.select('.x.axis')
 	      .attr("transform", "translate(0," + (height-self.margin.bottom) + ")")
-	      .call(xAxis);
+	      .call(self.xAxis);
 
-	    svg.select('.y.axis')
-	      .call(yAxis);
+	    self.scatter_svg.select('.y.axis')
+	      .call(self.yAxis_left);
 
-	    /* Force D3 to recalculate and update the dots */
-	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
-	    	svg.selectAll(".dot_"+self.sel_y[i])
-				.attr("cx", function(d) {return xScale(d[self.sel_x]);})
-				.attr("cy", function(d) {return yScale(d[self.sel_y[i]]);});
-	    };
+	    if(self.yAxis_right){
+	    	self.scatter_svg.select('.y2.axis')
+	      		.call(self.yAxis_right);
+	    }
+
+	    self.updatedots();
 
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
 			renderlines(self.sel_y[i]);
@@ -1434,41 +1434,41 @@ scatterPlot.prototype.render = function(){
 	    
 	    if (self.renderBlocks){
 
-			svg.selectAll(".datarectangle")
+			self.scatter_svg.selectAll(".datarectangle")
 				.attr("x",function(d) { 
 					if(self.daily_products){
 						var t = d.starttime;
 						t.setUTCHours(0,0,0,0);
-						return xScale(t); 
+						return self.xScale(t); 
 					}else{
-						return xScale(d.starttime); 
+						return self.xScale(d.starttime); 
 					}
 				})
 				.attr("y",function(d) { 
-					return yScale(d.max_height); 
+					return self.yAxis_left(d.max_height); 
 				})
 				.attr("width", function(d) { 
 					if(self.daily_products){
 						var t = d.starttime;
 						t.setUTCHours(23,59,59,999);
-						var x_max = xScale(t); 
+						var x_max = self.xScale(t); 
 						t.setUTCHours(0,0,0,0);
-						return (x_max-xScale(t));
+						return (x_max-self.xScale(t));
 					}else{
-						return (xScale(d.endtime)-xScale(d.starttime));
+						return (self.xScale(d.endtime)-self.xScale(d.starttime));
 					}
 				})
 				.attr("height", function(d){
-					return (yScale(d.min_height)-yScale(d.max_height));
+					return (self.yAxis_left(d.min_height)-self.yAxis_left(d.max_height));
 				});
 
 			colorAxisScale.range([(height-self.margin.bottom), 0]);
 
-			svg.selectAll(".color.axis")
+			self.scatter_svg.selectAll(".color.axis")
 				.attr("transform", "translate(" + (width+40) + " ,0)")
 				.call(colorAxis);
 
-			svg.selectAll(".colorscaleimage")
+			self.scatter_svg.selectAll(".colorscaleimage")
 				.attr("width",  height-self.margin.bottom)
 				.attr("transform", "translate(" + (width+17) + " ,"+(height-self.margin.bottom)+") rotate(270)");
 		}
@@ -1477,7 +1477,7 @@ scatterPlot.prototype.render = function(){
 
 	$(window).resize(resize);
 
-	svg.append("rect")
+	self.scatter_svg.append("rect")
 		.attr("class", "zoom x box")
 		.attr("width", width)
 		.attr("height", this.margin.bottom)
@@ -1488,7 +1488,7 @@ scatterPlot.prototype.render = function(){
 		.attr("pointer-events", "all")
 		.call(xzoom);
 
-	svg.append("rect")
+	self.scatter_svg.append("rect")
 		.attr("class", "zoom y box")
 		.attr("width", this.margin.left)
 		.attr("height", height - this.margin.bottom)
@@ -1499,10 +1499,218 @@ scatterPlot.prototype.render = function(){
 		.attr("pointer-events", "all")
 		.call(yzoom);
 
+	if(self.right_scale.length > 0){
+		self.scatter_svg.append("rect")
+			.attr("class", "zoom y2 box")
+			.attr("width", this.margin.right)
+			.attr("height", height - this.margin.bottom)
+			.attr("transform", "translate(" + width + ",0)")
+			.attr("fill", "none")
+			.attr("stroke", "none")
+			.style("visibility", "hidden")
+			.attr("pointer-events", "all")
+			.call(y2zoom);
+	}
 
 }
 
+scatterPlot.prototype.updateTicks = function updateTicks(){
+	var self = this;
+	// In order to work with the canvas renderer styles need to be applied directlo
+	// to svg elements instead of using a stile. Here we set stroke width and color 
+	// for all ticks and axis paths
+	self.scatter_svg.selectAll('.axis .domain')
+      	.attr("stroke-width", "2")
+      	.attr("stroke", "#000")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("fill", "none");
 
+    self.scatter_svg.selectAll('.axis path')
+      	.attr("stroke-width", "2")
+      	.attr("shape-rendering", "crispEdges")
+      	.attr("stroke", "#000");
+
+    // Check if grid active and adapt style accordingly
+  	if(self.grid_active){
+
+		self.scatter_svg.selectAll('.axis line')
+	      	.attr("stroke-width", "1")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#D3D3D3");
+
+		self.xAxis.tickSize(-(self.height-self.margin.bottom));
+		self.yAxis_left.tickSize(-self.width);
+		
+
+	}else{
+		self.xAxis.tickSize(5);
+		self.yAxis_left.tickSize(5);
+
+		self.scatter_svg.selectAll('.axis line')
+	      	.attr("stroke-width", "2")
+	      	.attr("shape-rendering", "crispEdges")
+	      	.attr("stroke", "#000");
+	}
+
+	// Update Axis to draw lines
+	self.scatter_svg.select('.x.axis')
+      .call(self.xAxis);
+
+    self.scatter_svg.select('.y.axis')
+      .call(self.yAxis_left);
+    if(self.right_scale.length > 0){
+	    self.scatter_svg.select('.y2.axis')
+	      .call(self.yAxis_right);
+    }
+};
+
+scatterPlot.prototype.renderdots = function renderdots(parameter){
+	var self = this;
+
+	self.scatter_svg.selectAll(".dot_"+parameter).on('click',null);
+	self.scatter_svg.selectAll(".dot_"+parameter).on('mouseover',null);
+	self.scatter_svg.selectAll(".dot_"+parameter).remove();
+
+	self.scatter_svg.selectAll(".dot_"+parameter)
+		.data(self.data)
+		.enter().append("circle")
+		.attr("class", "area").attr("clip-path", "url(#clip)")
+		.attr("class", "dot_"+parameter)
+
+		.attr("r", 3.5)
+
+		.attr("cx", function(d) { 
+			return self.xScale(d[self.sel_x]); 
+		})
+
+		.attr("cy", function(d) { 
+			if(self.right_scale.length > 0 && _.indexOf(self.right_scale, parameter) > -1 ){
+				return self.yScale_right(d[parameter]);
+			}else{
+				return self.yScale_left(d[parameter]);
+			}
+		 })
+		.style("fill", function(d) { 
+			if (d["active"]){
+				return self.parameter_colors(parameter);
+			}else{
+				return 'rgba(50,50,50,0.3)';
+			}
+		})
+		.style("fill-opacity", function(d) { 
+			if (d["active"]){
+				return 1;
+			}else{
+				return 0.15;
+			}
+		})
+		.style("stroke", function(d) {
+			if (d["active"]){
+				return self.colors(d.id); 
+			}else{
+				return 'rgba(50,50,50,0.3)';
+			}
+		})
+		.style("stroke-width", 1)
+
+		.on("mouseover", function(d) {
+			$(this).attr("r",7);
+
+        })  
+
+        .on("click", function(d) {
+
+        	if (self.selectedpoint != null){
+        		self.selectedpoint.attr("r",3.5);
+        		self.selectedpoint = null;
+        	}
+
+			self.openinfo(d);
+
+			self.selectedpoint = $(this);
+
+			var values = "";
+			for(var propName in d) {
+			    propValue = d[propName]
+			    if (propValue instanceof Date){
+			    	propValue = propValue.toISOString();
+			    }
+			    if(propName != "active"){
+				    values = values + propName + ": " + propValue + "<br>";
+				}
+			}
+			values = '<br>'+values;
+
+            self.tooltip.transition()
+                .duration(100)
+                .style("display", "block");
+            self.tooltip.html(values)
+                .style("left", (d3.event.pageX + 10) + "px")
+                .style("top", (d3.event.pageY + 3) + "px");
+
+            // Add close button
+            var closeArea = self.tooltip.append('text')
+				.text('X')
+				.attr("style", "position:absolute; right:13px; top:4px; cursor:pointer;")
+				.attr("font-family", "sans-serif")
+				.attr("font-size", "20px");
+
+			closeArea.on("click", function(){
+				self.tooltip.transition()        
+                	.duration(100)
+                	.style("display", "none");
+                	self.selectedpoint.attr("r",3.5);
+        			self.selectedpoint = null;
+        			self.openinfo(null);
+			});
+            
+            // Close tooltip if interaction is done anywhere else.
+            $(document).on("mousedown", function(e){
+            	if (e.target.nodeName!="circle" && e.target.className!="AV-point-tooltip"){
+            		if(self.selectedpoint){
+            			self.tooltip.transition()        
+		                	.duration(100)      
+		                	.style("display", "none");
+	                	self.selectedpoint.attr("r",3.5);
+	        			self.selectedpoint = null;
+	        			self.openinfo(null);
+            		}
+            		
+            	}
+            });
+
+			
+        })
+
+        .on("mouseout", function(d){
+    		if(self.selectedpoint == null) 
+    			$(this).attr("r",3.5);
+    		else if (self.selectedpoint[0] !== $(this)[0])
+    			$(this).attr("r",3.5);
+        });
+};
+
+scatterPlot.prototype.updatedots = function updatedots(parameter){
+	var self = this;
+	// Force D3 to recalculate and update the dots 
+	for (var i = self.sel_y.length - 1; i >= 0; i--) {
+		self.scatter_svg.selectAll(".dot_"+self.sel_y[i])
+			.attr("cx", function(d) {return self.xScale(d[self.sel_x]);})
+			.attr("cy", function(d) {
+				if(self.right_scale.length > 0 && _.indexOf(self.right_scale, self.sel_y[i]) > -1 ){
+					return self.yScale_right(d[self.sel_y[i]]);
+				}else{
+					return self.yScale_left(d[self.sel_y[i]]);
+				}
+			});
+	};
+};
+
+scatterPlot.prototype.applyFilters = function(){
+	for (var i = this.sel_y.length - 1; i >= 0; i--) {
+		this.renderdots(this.sel_y[i]);
+	};
+};
 
 scatterPlot.prototype.substractComponents = function substractComponents (a, b, parameter){
 	this.data.forEach (function(p) {
@@ -1545,6 +1753,17 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// Clone array
 		this.parameters = this.headerNames.slice(0);
 
+		if(self.fieldsforfiltering.length>1){
+			// TODO: Need to clear possible set filters?
+			self.active_filters = [];
+			for (var i = 0; i < self.fieldsforfiltering.length; i++) {
+				if(self.parameters.indexOf(self.fieldsforfiltering[i])>=0){
+					self.active_filters.push(self.fieldsforfiltering[i]);
+				}
+			}
+			self.fieldsforfiltering = [];
+		}
+
 		// Do some cleanup (especially on objects with events)
 		d3.select(self.histoEl).selectAll(".brush").remove();
 		d3.select("#reset_filters").remove();
@@ -1578,9 +1797,12 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				self.parameters.splice(index, 1);
 			}
 		});
-		var buttonlabel = 'Hide filters';
+
+		self.parameters = _.sortBy(self.parameters, function(i){return i.toLowerCase();});
+
+		var buttonlabel = 'Hide filters <i class="fa fa-chevron-down" aria-hidden="true"></i>';
 		if(self.filters_hidden){
-			buttonlabel = 'Show filters';
+			buttonlabel = 'Show filters <i class="fa fa-chevron-up" aria-hidden="true"></i>';
 		}
 
 		d3.select(this.histoEl).append("button")
@@ -1592,14 +1814,15 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 
 		if(!self.filters_hidden){
-
-			var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right,
+			var leftshift = 70;
+			var	width = $(this.histoEl).width() - this.histoMargin.left - this.histoMargin.right - leftshift,
 				height = $(this.histoEl).height() - this.histoMargin.top - this.histoMargin.bottom;
 
 			this.x_hist = {};
 			this.hist_data = {};
 			this.y = {};
-			this.x = d3.scale.ordinal().domain(self.parameters).rangePoints([0, width]);
+			self.active_filters = _.sortBy(self.active_filters, function(i){return i.toLowerCase();});
+			this.x = d3.scale.ordinal().domain(self.active_filters).rangePoints([0, width]);
 			this.axis = d3.svg.axis().orient("left");
 
 			var line = d3.svg.line(),
@@ -1614,16 +1837,143 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    .attr("height", $(this.histoEl).height())
 			  	.append("g")
 			  	.attr("display", "block")
-			  	.attr("transform", "translate(" + this.histoMargin.left + "," + (this.histoMargin.top) + ")");
+			  	.attr("transform", "translate(" + (this.histoMargin.left+leftshift) + "," + (this.histoMargin.top) + ")");
 
 			d3.select(this.histoEl).append("button")
 		        .attr("type", "button")
 		        .attr("class", "btn btn-success")
 		        .attr("disabled", true)
 		        .attr("id", "reset_filters")
-		        .attr("style", "position: absolute; left: 158px; top:-30px;")
-		        .text("Reset Filters");
+		        .attr("style", "position: absolute; left: 174px; top:-30px;")
+		        .html('Reset Filters <i class="fa fa-eraser erasorfunction" aria-hidden="true"></i>');
 
+
+			d3.select(this.histoEl).append("div")
+				.attr("class", "input-group")
+				.attr("id", "filterinputgroup")
+				.attr("style", "position: absolute; top:12px; height:15px; width:100%; left:30px; padding-left:28px;")
+				.append("div")
+				.attr("class", "input-group-btn")
+				.append("button")
+				.attr("id", "addfilteropen")
+				.attr("type", "button")
+				.attr("style", "width:60px;")
+				.attr("class", "btn btn-default dropdown-toggle")
+				.html('Add <span class="caret"></span>');
+
+			d3.select("#filterinputgroup").append("div")
+				.attr("class", "w2ui-field")
+				.attr("style", "position: absolute; height:15px; width:"+($(this.histoEl).width()-this.shorten_width)+"px; left:"+(87)+"px;")
+				.append("input")
+				.attr("id", "filtermanager");
+
+			var that = self;
+			function handleClickedItem(evt){
+				if($(evt.originalEvent.srcElement).hasClass("erasorfunction") ||
+				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+
+					var index = that.active_brushes.indexOf(evt.item.id);
+					if (index > -1) {
+						that.active_brushes.splice(index, 1);
+						that.y[evt.item.id].brush.clear();
+					}
+
+					that.active_brushes = that.active_filters.filter(function(p) { return !that.y[p].brush.empty(); });
+					that.brush_extents = {};
+					that.active_brushes.map(function(p) { that.brush_extents[p] = that.y[p].brush.extent(); });
+					var filter = {};
+
+					var active;
+					
+					_.each(that.data, function(row){
+						active = true;
+						that.active_brushes.forEach (function(p) {
+							filter[p] = that.brush_extents[p];
+					    	if (!(that.brush_extents[p][0] <= row[p] && row[p] <= that.brush_extents[p][1])){
+					    		active = false;
+					    	}
+				    	});
+						row["active"] = active ? 1 : 0;
+					}); 
+
+					that.filterset(filter);
+					that.parallelsPlot();
+					that.applyFilters();
+
+				}
+			}
+
+			function handleRemovedItem(evt){
+				if($(evt.originalEvent.srcElement).hasClass("w2ui-list-remove")){
+
+					var index = that.active_filters.indexOf(evt.item.id);
+					if (index > -1) {
+						that.active_filters.splice(index, 1);
+						that.y[evt.item.id].brush.clear();
+					}
+
+					that.active_brushes = that.active_filters.filter(function(p) { return !that.y[p].brush.empty(); });
+					that.brush_extents = {};
+					that.active_brushes.map(function(p) { that.brush_extents[p] = that.y[p].brush.extent(); });
+					var filter = {};
+
+					var active;
+					
+					_.each(that.data, function(row){
+						active = true;
+						that.active_brushes.forEach (function(p) {
+							filter[p] = that.brush_extents[p];
+					    	if (!(that.brush_extents[p][0] <= row[p] && row[p] <= that.brush_extents[p][1])){
+					    		active = false;
+					    	}
+				    	});
+						row["active"] = active ? 1 : 0;
+					}); 
+
+					that.filterset(filter);
+					that.parallelsPlot();
+					that.applyFilters();
+
+				}
+			}
+
+			$('#filtermanager').w2field('enum', { 
+				items: self.parameters, 
+				openOnFocus: true,
+				selected: self.active_filters,
+				renderItem: function (item, index, remove) {
+					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					var curfil = item.id;
+					var erasericon = '';
+					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
+						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+					}
+					var html = remove + erasericon +self.createSubscript(item.id);
+					return html;
+				},
+				renderDrop: function (item, options) {
+					var html = '<b>'+self.createSubscript(item.id)+'</b>';
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
+						html += ' ('+self.uom_set[item.id].uom+')';
+					}
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						html+= ': '+self.uom_set[item.id].name;
+					}
+					return html;
+				},
+				onClick: handleClickedItem.bind(self),
+				onRemove: handleRemovedItem.bind(self)
+			});
+
+			$( "#addfilteropen" ).click(function(){
+				$("#filtermanager").focus();
+			});
+
+			$('#filtermanager').change(function(event){
+				var parameters = $('#filtermanager').data('selected');
+				self.active_filters = parameters.map(function(item) {return item.id;});
+				self.parallelsPlot();
+			});
 
 		    if (self.active_brushes.length>0){
 				// Activate clear filter button
@@ -1639,13 +1989,13 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				}); 
 
 				self.parallelsPlot();
-				self.render();
+				self.applyFilters();
 			});
 
 			// Handles a brush event, toggling the display of foreground lines.
 			function brushend(parameter) {
 				
-				self.active_brushes = self.parameters.filter(function(p) { return !self.y[p].brush.empty(); });
+				self.active_brushes = self.active_filters.filter(function(p) { return !self.y[p].brush.empty(); });
 				self.brush_extents = {};
 				self.active_brushes.map(function(p) { self.brush_extents[p] = self.y[p].brush.extent(); });
 				var filter = {};
@@ -1665,17 +2015,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 				self.filterset(filter);
 				
-
-				self.render();
+				self.applyFilters();
 				self.parallelsPlot();
 
 			}
 
-
-		    var self = this;
 		    self.svg = svg;
 			// Create a scale and brush for each trait.
-			self.parameters.forEach(function(d) {
+			self.active_filters.forEach(function(d) {
 
 				if(self.col_ordinal.indexOf(d) != -1){
 					self.y[d] = d3.scale.ordinal()
@@ -1778,7 +2125,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				
 
 
-			self.parameters.forEach(function(para) {
+			self.active_filters.forEach(function(para) {
 
 				var bar = svg.selectAll("." + para)
 				    .data(self.hist_data[para])
@@ -1807,7 +2154,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			// Add a group element for each trait.
 			var g = svg.selectAll(".trait")
-			    .data(self.parameters)
+			    .data(self.active_filters)
 			    .enter().append("svg:g")
 			    //.attr("class", "trait")
 			    .attr("class", function(d) { return "trait " + d; })
@@ -1820,8 +2167,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    .attr("class", "axis")
 			    .each(function(d) { 
 			    	d3.select(this).call(self.axis.scale(self.y[d]));
-			    })
-			    .append("svg:text")
+			    });
+			    /*.append("svg:text")
 			    .attr("text-anchor", "middle")
 			    .attr("y", -15)
 			    .html(function (d) { 
@@ -1840,7 +2187,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 						newkey = d;
 					}
 					return newkey;
-				});
+				});*/
 				
 
 
@@ -1885,7 +2232,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		// Resize method, recalculates position of all elements in svg
 		function resize_parallels() {
 
-		    var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right,
+		    var leftshift = 70;
+			var	width = $(self.histoEl).width() - self.histoMargin.left - self.histoMargin.right - leftshift,
 				height = $(self.histoEl).height() - self.histoMargin.top - self.histoMargin.bottom;
 
 			d3.select(".parallels")
@@ -1898,7 +2246,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			var yobj = self.y;
 
 
-			self.parameters.forEach(function(para) {
+			self.active_filters.forEach(function(para) {
 
 				yobj[para].range([height,0]);
 
@@ -1913,20 +2261,49 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			// Add a group element for each trait.
 			self.svg.selectAll(".trait")
-				.data(self.parameters)
+				.data(self.active_filters)
 			    .attr("transform", function(d) { 
 			    	return "translate(" + self.x(d) + ")";
 			    });
 
 			self.svg.selectAll('.axis')
-				.data(self.parameters)
+				.data(self.active_filters)
 			    .each(function(d) { 
 			    	d3.select(this).call(self.axis.scale(yobj[d]));
 			    })
+
+			$("#filterinputgroup .w2ui-field").width( $(self.histoEl).width()-self.shorten_width );
+			$('#filtermanager').w2field('enum', { 
+				items: self.parameters, 
+				openOnFocus: true,
+				selected: self.active_filters,
+				renderItem: function (item, index, remove) {
+					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					var curfil = item.id;
+					var erasericon = '';
+					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
+						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+					}
+					var html = remove + erasericon +self.createSubscript(item.id);
+					return html;
+				},
+				renderDrop: function (item, options) {
+					var html = '<b>'+self.createSubscript(item.id)+'</b>';
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
+						html += ' ('+self.uom_set[item.id].uom+')';
+					}
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						html+= ': '+self.uom_set[item.id].name;
+					}
+					return html;
+				}
+			});
 		}
 
 		d3.select("#toggle_filters").on("click", function(){
 
+			$(self.histoEl).empty();
+			$(window).off("resize", resize_parallels);
 
 			if(self.filters_hidden){
 				self.filters_hidden = false;
@@ -1939,7 +2316,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					complete: function() {
 						$(self.scatterEl).trigger('resize');
 						self.parallelsPlot();
-						resize_parallels();
 					}
 				});
 
@@ -1948,11 +2324,13 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				$(self.scatterEl).animate({height: "95%"}, {
 					step: function( now, fx ) {
 						$(self.scatterEl).trigger('resize');
+					},
+					complete: function() {
+						$(self.scatterEl).trigger('resize');
+						$(self.histoEl).css("height", "40px");
+						self.parallelsPlot();
 					}
 				});
-				$(self.histoEl).css("height", "40px");
-				self.parallelsPlot();
-				
 			}
 			
 		});
