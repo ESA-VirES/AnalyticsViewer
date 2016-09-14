@@ -922,7 +922,7 @@ scatterPlot.prototype.render = function(){
 		x_key = this.sel_x;
 	}
 
-	if(this.uom_set.hasOwnProperty(this.sel_x)){
+	if(self.uom_set.hasOwnProperty(this.sel_x) && self.uom_set[this.sel_x].uom != null){
 		x_key += " ("+this.uom_set[this.sel_x].uom+") ";
 	}
 
@@ -942,7 +942,7 @@ scatterPlot.prototype.render = function(){
 		}else{
 			newkey = self.left_scale[i];
 		}
-		if(self.uom_set.hasOwnProperty(self.left_scale[i])){
+		if(self.uom_set.hasOwnProperty(self.left_scale[i]) && self.uom_set[self.left_scale[i]].uom != null){
 			newkey += " ("+self.uom_set[self.left_scale[i]].uom+") ";
 		}
 		paras_left.push(newkey);
@@ -985,7 +985,7 @@ scatterPlot.prototype.render = function(){
 			}else{
 				newkey = self.right_scale[i];
 			}
-			if(self.uom_set.hasOwnProperty(self.right_scale[i])){
+			if(self.uom_set.hasOwnProperty(self.right_scale[i]) && self.uom_set[self.right_scale[i]].uom != null){
 				newkey += " ("+self.uom_set[self.right_scale[i]].uom+") ";
 			}
 			paras_right.push(newkey);
