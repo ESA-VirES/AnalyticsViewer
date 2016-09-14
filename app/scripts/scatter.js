@@ -923,7 +923,7 @@ scatterPlot.prototype.render = function(){
 	}
 
 	if(this.uom_set.hasOwnProperty(this.sel_x)){
-		x_key += " ("+this.uom_set[this.sel_x]+") ";
+		x_key += " ("+this.uom_set[this.sel_x].uom+") ";
 	}
 
 	// Add ticks for X axis
@@ -943,7 +943,7 @@ scatterPlot.prototype.render = function(){
 			newkey = self.left_scale[i];
 		}
 		if(self.uom_set.hasOwnProperty(self.left_scale[i])){
-			newkey += " ("+self.uom_set[self.left_scale[i]]+") ";
+			newkey += " ("+self.uom_set[self.left_scale[i]].uom+") ";
 		}
 		paras_left.push(newkey);
 	};
@@ -986,7 +986,7 @@ scatterPlot.prototype.render = function(){
 				newkey = self.right_scale[i];
 			}
 			if(self.uom_set.hasOwnProperty(self.right_scale[i])){
-				newkey += " ("+self.uom_set[self.right_scale[i]]+") ";
+				newkey += " ("+self.uom_set[self.right_scale[i]].uom+") ";
 			}
 			paras_right.push(newkey);
 		};
@@ -1754,6 +1754,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		this.parameters = this.headerNames.slice(0);
 
 		if(self.fieldsforfiltering.length>1){
+			// TODO: Need to clear possible set filters?
+			self.active_filters = [];
 			for (var i = 0; i < self.fieldsforfiltering.length; i++) {
 				if(self.parameters.indexOf(self.fieldsforfiltering[i])>=0){
 					self.active_filters.push(self.fieldsforfiltering[i]);
@@ -1950,8 +1952,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					return html;
 				},
 				renderDrop: function (item, options) {
-					var html = item.id;
-				return html;
+					var html = '<b>'+self.createSubscript(item.id)+'</b>';
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
+						html += ' ('+self.uom_set[item.id].uom+')';
+					}
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						html+= ': '+self.uom_set[item.id].name;
+					}
+					return html;
 				},
 				onClick: handleClickedItem.bind(self),
 				onRemove: handleRemovedItem.bind(self)
@@ -2277,6 +2285,16 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
 					}
 					var html = remove + erasericon +self.createSubscript(item.id);
+					return html;
+				},
+				renderDrop: function (item, options) {
+					var html = '<b>'+self.createSubscript(item.id)+'</b>';
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
+						html += ' ('+self.uom_set[item.id].uom+')';
+					}
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						html+= ': '+self.uom_set[item.id].name;
+					}
 					return html;
 				}
 			});

@@ -27,6 +27,36 @@ var args = {
 */
 
 //Use case: normal scatterplot based on unparsed data
+var uom_set = {
+    "B_NEC": {
+        "uom":"nT",
+        "name": "Magnetic field vector, NEC frame"
+    },
+    "F": {
+        "uom":"nT",
+        "name": "Magnetic field intensity"
+    },
+    "Latitude": {
+        "uom": "deg",
+        "name": "Position in ITRF - Geocentric latitude"
+    },
+    "Longitude": {
+        "uom": "deg",
+        "name": "Position in ITRF - Geocentric longitude"
+    },
+    "qdlat": {
+        "uom": "deg",
+        "name": "Quasi dipole latitude"
+    },
+    "qdlon": {
+        "uom": "deg",
+        "name": "Quasi dipole longitude"
+    },
+    "mlt": {
+        "uom": null,
+        "name": "Magnetic local time"
+    }
+};
 
 var plotdata =
 'dB_AOCS,dB_other,Flags_B,Flags_F,F,Timestamp,q_NEC_CRF,Longitude,B_NEC,Flags_q,Flags_Platform,Radius,SyncStatus,B_error,Latitude,F_error,B_VFM,dF_AOCS,dF_other,ASM_Freq_Dev,Att_error\n'+
@@ -43,6 +73,7 @@ var args = {
 	selection_x: "Latitude",
 	selection_y: ["F_error", "F"],
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
+	uom_set: uom_set
 
 };
 
