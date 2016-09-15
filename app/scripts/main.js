@@ -134,3 +134,8 @@ function onscatterPlot(){
 	sp.loadData(args);
 
 }
+
+function changeFilters(){
+	sp.fieldsforfiltering = ["F", "Latitude", "Longitude", "Radius"];
+	sp.loadData(args);
+}

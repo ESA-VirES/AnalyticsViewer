@@ -1754,7 +1754,35 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		this.parameters = this.headerNames.slice(0);
 
 		if(self.fieldsforfiltering.length>1){
-			// TODO: Need to clear possible set filters?
+			// Clear active filters which are not present in the new set of filters
+			var changesinfilters = false;
+			for (var i = self.active_brushes.length - 1; i >= 0; i--) {
+					var index = self.fieldsforfiltering.indexOf(self.active_brushes[i]);
+					if(index == -1){
+						self.y[self.active_brushes[i]].brush.clear();
+						delete self.brush_extents[self.active_brushes[i]];
+						self.active_brushes.splice(i, 1);
+						changesinfilters = true;
+					}
+			}
+			if(changesinfilters){
+
+				var filter = {};
+				var active;
+				_.each(self.data, function(row){
+					active = true;
+					self.active_brushes.forEach (function(p) {
+						filter[p] = self.brush_extents[p];
+						if (!(self.brush_extents[p][0] <= row[p] && row[p] <= self.brush_extents[p][1])){
+							active = false;
+						}
+					});
+					row["active"] = active ? 1 : 0;
+				}); 
+				self.filterset(filter);
+				self.applyFilters();
+			}
+
 			self.active_filters = [];
 			for (var i = 0; i < self.fieldsforfiltering.length; i++) {
 				if(self.parameters.indexOf(self.fieldsforfiltering[i])>=0){
