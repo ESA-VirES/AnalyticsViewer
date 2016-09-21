@@ -526,7 +526,7 @@ scatterPlot.prototype.render = function(){
 	}
 	var palette = [];
 	if (combined.length <= 5) {
-		palette = ["#514143", "#98be57", "#9555b4", "#91b5b5", "#c7624f"];
+		palette = ["#98be57", "#9555b4", "#91b5b5", "#514143", "#c7624f"];
 	}else if (combined.length <= 10) {
 		palette = ["#be4e3c","#8cd156","#7c48c2","#c9a84e","#c9519d","#83caae",
 				   "#4f2f4c","#ce9fa3","#515f39","#7b8fc3"];
@@ -1640,10 +1640,12 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 			}
 		 })
 		.style("fill", function(d) { 
-			if(self.single_color){
-				return self.single_color_palette(d.id+parameter);
-			}else if (d["active"]){
-				return self.parameter_colors(parameter);
+			if (d["active"]){
+				if(self.single_color){
+					return self.single_color_palette(d.id+parameter);
+				}else {
+					return self.parameter_colors(parameter);
+				}
 			}else{
 				return 'rgba(50,50,50,0.3)';
 			}
@@ -1656,10 +1658,12 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 			}
 		})
 		.style("stroke", function(d) {
-			if(self.single_color){
-				return self.single_color_palette(d.id+parameter);
-			}else if (d["active"]){
-				return self.colors(d.id); 
+			if (d["active"]){
+				if(self.single_color){
+					return self.single_color_palette(d.id+parameter);
+				}else {
+					return self.colors(d.id); 
+				}
 			}else{
 				return 'rgba(50,50,50,0.3)';
 			}
