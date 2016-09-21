@@ -66,6 +66,9 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.active_filters = [];
 	this.fieldsforfiltering = defaultFor(args.fieldsforfiltering, ["F","F_error","B_N", "B_E", "B_C", "B_error","dst","kp","qdlat","mlt"]);
 
+	this.single_color = defaultFor(args.single_color, false);
+	this.single_color_palette = null;
+
 	this.left_scale = [];
 	this.right_scale = [];
 
@@ -351,6 +354,15 @@ scatterPlot.prototype.initData = function initData(){
 		}); 
 	}
 
+	var uobjs = _.uniq(this.data, function(r){
+		return r["id"];
+	});
+
+	this.dataset_ids = [];
+	for (var i = 0; i < uobjs.length; i++) {
+		this.dataset_ids.push(uobjs[i].id)
+	}
+
 	
 }
 
@@ -504,6 +516,31 @@ scatterPlot.prototype.render = function(){
 
 	}
 
+	// Now that we have selected parameters and unique ids we create enough colors
+	var combined = [];
+	for (var i = 0; i < self.sel_y.length; i++) {
+		
+		for (var j = 0; j < this.dataset_ids.length; j++) {
+			combined.push(this.dataset_ids[j]+self.sel_y[i]);
+		}
+	}
+	var palette = [];
+	if (combined.length <= 5) {
+		palette = ["#514143", "#98be57", "#9555b4", "#91b5b5", "#c7624f"];
+	}else if (combined.length <= 10) {
+		palette = ["#be4e3c","#8cd156","#7c48c2","#c9a84e","#c9519d","#83caae",
+				   "#4f2f4c","#ce9fa3","#515f39","#7b8fc3"];
+	}else if (combined.length <= 15) {
+		palette = ["#7cd7ab","#6e4ccd","#94dc52","#cc4ec0","#628e40","#563b81",
+				   "#cfb14a","#b591c7","#d55835","#6ca4c0","#c74d72","#41583f",
+				   "#cdb49b","#4a2e40","#854e31"];
+	}else{
+		palette = ["#cfd14a","#6d41c8","#77d750","#cf44c0","#63d3a4","#d34d33",
+				   "#667fd0","#c78c3a","#542b6e","#648d3d","#b670c4","#c4d29c",
+				   "#cc4a74","#80becd","#7b3c30","#ca9ebf","#485939","#c8957e",
+				   "#3a2334","#566882"];
+	}
+	this.single_color_palette = d3.scale.ordinal().domain(combined).range(palette);
 
 	// Definition and creation of scatter plot svg element with available size
 
@@ -923,7 +960,7 @@ scatterPlot.prototype.render = function(){
 	}
 
 	if(self.uom_set.hasOwnProperty(this.sel_x) && self.uom_set[this.sel_x].uom != null){
-		x_key += " ("+this.uom_set[this.sel_x].uom+") ";
+		x_key += " ["+this.uom_set[this.sel_x].uom+"] ";
 	}
 
 	// Add ticks for X axis
@@ -943,7 +980,7 @@ scatterPlot.prototype.render = function(){
 			newkey = self.left_scale[i];
 		}
 		if(self.uom_set.hasOwnProperty(self.left_scale[i]) && self.uom_set[self.left_scale[i]].uom != null){
-			newkey += " ("+self.uom_set[self.left_scale[i]].uom+") ";
+			newkey += " ["+self.uom_set[self.left_scale[i]].uom+"] ";
 		}
 		paras_left.push(newkey);
 	};
@@ -986,7 +1023,7 @@ scatterPlot.prototype.render = function(){
 				newkey = self.right_scale[i];
 			}
 			if(self.uom_set.hasOwnProperty(self.right_scale[i]) && self.uom_set[self.right_scale[i]].uom != null){
-				newkey += " ("+self.uom_set[self.right_scale[i]].uom+") ";
+				newkey += " ["+self.uom_set[self.right_scale[i]].uom+"] ";
 			}
 			paras_right.push(newkey);
 		};
@@ -1329,8 +1366,20 @@ scatterPlot.prototype.render = function(){
 				.attr("cx", width - 25)
 				.attr("cy", 9)
 				.attr("r", 4)
-				.style("fill", function(d) { return self.parameter_colors(self.sel_y[i]); })
-				.style("stroke", function(d) { return self.colors(d); });
+				.style("fill", function(d) {
+					if(self.single_color){
+						return self.single_color_palette(d+self.sel_y[i]);
+					} else{
+						return self.parameter_colors(self.sel_y[i]); 
+					}
+				})
+				.style("stroke", function(d) {
+					if(self.single_color){
+						return self.single_color_palette(d+self.sel_y[i]);
+					} else{
+						return self.colors(d);
+					}
+				});
 
 			// Add identifier as text to label element
 			legend.append("text")
@@ -1403,7 +1452,7 @@ scatterPlot.prototype.render = function(){
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
 	    	//var par = self.sel_y[i]
 		    // Update legend for available unique identifiers
-			var legend = self.scatter_svg.select(".legend_"+self.sel_y[i])
+			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i])
 			legend.select("circle")
 				.attr("cx", width - 25)
 			
@@ -1591,7 +1640,9 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 			}
 		 })
 		.style("fill", function(d) { 
-			if (d["active"]){
+			if(self.single_color){
+				return self.single_color_palette(d.id+parameter);
+			}else if (d["active"]){
 				return self.parameter_colors(parameter);
 			}else{
 				return 'rgba(50,50,50,0.3)';
@@ -1605,7 +1656,9 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 			}
 		})
 		.style("stroke", function(d) {
-			if (d["active"]){
+			if(self.single_color){
+				return self.single_color_palette(d.id+parameter);
+			}else if (d["active"]){
 				return self.colors(d.id); 
 			}else{
 				return 'rgba(50,50,50,0.3)';
@@ -1988,7 +2041,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				renderDrop: function (item, options) {
 					var html = '<b>'+self.createSubscript(item.id)+'</b>';
 					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
-						html += ' ('+self.uom_set[item.id].uom+')';
+						html += ' ['+self.uom_set[item.id].uom+']';
 					}
 					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
 						html+= ': '+self.uom_set[item.id].name;
@@ -2324,7 +2377,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				renderDrop: function (item, options) {
 					var html = '<b>'+self.createSubscript(item.id)+'</b>';
 					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].uom != null){
-						html += ' ('+self.uom_set[item.id].uom+')';
+						html += ' ['+self.uom_set[item.id].uom+']';
 					}
 					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
 						html+= ': '+self.uom_set[item.id].name;
