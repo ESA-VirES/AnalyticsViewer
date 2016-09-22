@@ -526,7 +526,7 @@ scatterPlot.prototype.render = function(){
 	}
 	var palette = [];
 	if (combined.length <= 5) {
-		palette = ["#98be57", "#9555b4", "#91b5b5", "#514143", "#c7624f"];
+		palette = ["#01a4d6","#2a7d2a","#ff8f4e","#7f6af5","#c8006e"];
 	}else if (combined.length <= 10) {
 		palette = ["#be4e3c","#8cd156","#7c48c2","#c9a84e","#c9519d","#83caae",
 				   "#4f2f4c","#ce9fa3","#515f39","#7b8fc3"];
@@ -1621,7 +1621,9 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 	self.scatter_svg.selectAll(".dot_"+parameter).remove();
 
 	self.scatter_svg.selectAll(".dot_"+parameter)
-		.data(self.data)
+		.data(_.filter(self.data, function(d){
+			return !isNaN(d[parameter]);
+		}))
 		.enter().append("circle")
 		.attr("class", "area").attr("clip-path", "url(#clip)")
 		.attr("class", "dot_"+parameter)
@@ -2034,12 +2036,36 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				selected: self.active_filters,
 				renderItem: function (item, index, remove) {
 					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					
 					var curfil = item.id;
 					var erasericon = '';
+
 					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
-						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+						erasericon = '<div class="erasoricon erasorfunction">'+
+									 '<i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
 					}
-					var html = remove + erasericon +self.createSubscript(item.id);
+
+					var html = remove + erasericon + 
+						'<div style="white-space: nowrap;overflow: hidden;'+
+							'text-overflow: ellipsis;height:16px;width:58px;'+
+							'position:absolute; float:left;">'+
+							self.createSubscript(item.id)+
+						'</div>';
+
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						var divstyle = "margin:-3px -10px -1px -7px;height: 20px;padding: 3px 10px 1px 7px;";
+						html = 
+							'<div data-toggle="tooltip" title="'+ 
+								self.uom_set[item.id].name+'" style="'+divstyle+'">'+
+								remove + erasericon + 
+								'<div style="white-space: nowrap;overflow: hidden;'+
+									'text-overflow: ellipsis;height:16px;width:58px;'+
+									'position:absolute; float:left;">'+
+									self.createSubscript(item.id)+
+								'</div>'+
+							'</div>';
+					}
+
 					return html;
 				},
 				renderDrop: function (item, options) {
@@ -2370,12 +2396,36 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				selected: self.active_filters,
 				renderItem: function (item, index, remove) {
 					item.style = "width: 100px; margin-left:"+(self.x(item.id))+"px; position: absolute;";
+					
 					var curfil = item.id;
 					var erasericon = '';
+
 					if(_.find(self.active_brushes, function(fil){return fil == curfil;})){
-						erasericon = '<div class="erasoricon erasorfunction"><i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
+						erasericon = '<div class="erasoricon erasorfunction">'+
+									 '<i class="fa fa-eraser erasorfunction" aria-hidden="true"></i></div>';
 					}
-					var html = remove + erasericon +self.createSubscript(item.id);
+
+					var html = remove + erasericon + 
+						'<div style="white-space: nowrap;overflow: hidden;'+
+							'text-overflow: ellipsis;height:16px;width:58px;'+
+							'position:absolute; float:left;">'+
+							self.createSubscript(item.id)+
+						'</div>';
+
+					if(self.uom_set.hasOwnProperty(item.id) && self.uom_set[item.id].name != null){
+						var divstyle = "margin:-3px -10px -1px -7px;height: 20px;padding: 3px 10px 1px 7px;";
+						html = 
+							'<div data-toggle="tooltip" title="'+ 
+								self.uom_set[item.id].name+'" style="'+divstyle+'">'+
+								remove + erasericon + 
+								'<div style="white-space: nowrap;overflow: hidden;'+
+									'text-overflow: ellipsis;height:16px;width:58px;'+
+									'position:absolute; float:left;">'+
+									self.createSubscript(item.id)+
+								'</div>'+
+							'</div>';
+					}
+
 					return html;
 				},
 				renderDrop: function (item, options) {

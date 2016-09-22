@@ -32,11 +32,11 @@ var uom_set = {
         "uom":"nT",
         "name": "Magnetic field vector, NEC frame"
     },
-    "F": {
+    "asd": {
         "uom":"nT",
         "name": "Magnetic field intensity"
     },
-    "Latitude": {
+    "Ferrorlonglong": {
         "uom": "deg",
         "name": "Position in ITRF - Geocentric latitude"
     },
@@ -67,11 +67,11 @@ var args = {
 	scatterEl: "#scatter",
 	histoEl: "#histograms",
 	//data: plotdata,
-	url: "data/swarmdata.csv",
+	url: "data/combined_data.csv",
 	selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],
 	selection_x: "Latitude",
-	selection_y: ["F_error", "F"],
+	selection_y: ["n", "F"],
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
 	uom_set: uom_set,
 	single_color: true
