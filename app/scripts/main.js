@@ -67,7 +67,7 @@ var args = {
 	scatterEl: "#scatter",
 	histoEl: "#histograms",
 	//data: plotdata,
-	url: "data/combined_data.csv",
+	url: "data/swarmdata.csv",
 	selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],
 	selection_x: "Latitude",

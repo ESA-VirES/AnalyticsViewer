@@ -137,8 +137,10 @@ scatterPlot.prototype.analyseData = function analyseData(){
     	if(this.data[0][key] instanceof Date){
     		this.col_date.push(key);
 	    }else{
-	    	var val = +(this.data[0][key]);
-	    	if (isNaN(val)){
+	    	var filtered_data = _.filter(this.data, function(d){
+				return !isNaN(d[key]);
+			});
+	    	if(filtered_data.length==0){
 	    		this.col_ordinal.push(key);
 	    	}
 	    }
