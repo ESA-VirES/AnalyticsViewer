@@ -31,6 +31,7 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	);
 	this.shorten_width = defaultFor(args.shorten_width, 100);
 
+	this.file_save_string = defaultFor(args.file_save_string, "Analytics.png");
 	this.uom_set = defaultFor(args.uom_set, {});
 	this.filters_hidden = false;
 	this.openinfo = openinfo;
@@ -379,7 +380,7 @@ scatterPlot.prototype.render = function(){
 
 	// Doing some cleanup as just emptyig the div does not seem to cleanup correctly
 	for (var i = this.sel_y.length - 1; i >= 0; i--) {
-		var par = this.sel_y[i];
+		var par = this.sel_y[i].replace(/[^a-zA-Z ]/g, "");
 		d3.select(this.scatterEl).selectAll(".dot_"+par).remove();
 
 	};
@@ -442,7 +443,7 @@ scatterPlot.prototype.render = function(){
 		ctx.drawSvg(svg_html, 0, 0, renderHeight, renderWidth);
 
 		c.toBlob(function(blob) {
-			saveAs(blob, "Analytics.png");
+			saveAs(blob, self.file_save_string);
 		}, "image/png" ,1);
 
 	});
@@ -774,7 +775,7 @@ scatterPlot.prototype.render = function(){
 	function getSelectionScale(selection){
 		var scale;
 		if (self.col_date.indexOf(selection) != -1){
-			scale = d3.time.scale.utc().range([height-self.margin.bottom, 0]);
+			scale = d3.time.scale.utc().range([0, height-self.margin.bottom]);
 		}else if(self.col_ordinal.indexOf(selection) != -1){
 			scale = d3.scale.ordinal().rangePoints([0, height-self.margin.bottom]);
 		}else{
@@ -1080,6 +1081,7 @@ scatterPlot.prototype.render = function(){
 	}
 
 	function renderlines(parameter){
+		parameter = parameter.replace(/[^a-zA-Z ]/g, "")
 		if(self.lineConnections){
 			// Create line function necessary for line rendering
 			var line_func = d3.svg.line()
@@ -1355,7 +1357,7 @@ scatterPlot.prototype.render = function(){
 		for (var i = this.sel_y.length - 1; i >= 0; i--) {
 
 			// Add legend for available unique identifiers in loaded csv data
-			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i])
+			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i].replace(/[^a-zA-Z ]/g, ""))
 				.data(self.identifiers)
 				.enter().append("g")
 				.attr("class", "legend_"+self.sel_y[i])
@@ -1405,6 +1407,7 @@ scatterPlot.prototype.render = function(){
 
 	// Resize method, recalculates position of all elements in svg
 	function resize() {
+
 	    var width = $(self.scatterEl).width() - self.margin.left - self.margin.right,
 	 		height = $(self.scatterEl).height() - self.margin.top - self.margin.bottom;
 
@@ -1454,7 +1457,7 @@ scatterPlot.prototype.render = function(){
 	    for (var i = self.sel_y.length - 1; i >= 0; i--) {
 	    	//var par = self.sel_y[i]
 		    // Update legend for available unique identifiers
-			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i])
+			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i].replace(/[^a-zA-Z ]/g, ""))
 			legend.select("circle")
 				.attr("cx", width - 25)
 			
@@ -1526,7 +1529,14 @@ scatterPlot.prototype.render = function(){
 
 	}
 
-	$(window).resize(resize);
+	var doit;
+
+	$(window).resize(function(){
+		clearTimeout(doit);
+		doit = setTimeout(resize, 100);
+	});
+
+	//$(window).resize(resize);
 
 	self.scatter_svg.append("rect")
 		.attr("class", "zoom x box")
@@ -1617,18 +1627,19 @@ scatterPlot.prototype.updateTicks = function updateTicks(){
 
 scatterPlot.prototype.renderdots = function renderdots(parameter){
 	var self = this;
+	dom_param = parameter.replace(/[^a-zA-Z ]/g, "");
 
-	self.scatter_svg.selectAll(".dot_"+parameter).on('click',null);
-	self.scatter_svg.selectAll(".dot_"+parameter).on('mouseover',null);
-	self.scatter_svg.selectAll(".dot_"+parameter).remove();
+	self.scatter_svg.selectAll(".dot_"+dom_param).on('click',null);
+	self.scatter_svg.selectAll(".dot_"+dom_param).on('mouseover',null);
+	self.scatter_svg.selectAll(".dot_"+dom_param).remove();
 
-	self.scatter_svg.selectAll(".dot_"+parameter)
+	self.scatter_svg.selectAll(".dot_"+dom_param)
 		.data(_.filter(self.data, function(d){
 			return !isNaN(d[parameter]);
 		}))
 		.enter().append("circle")
 		.attr("class", "area").attr("clip-path", "url(#clip)")
-		.attr("class", "dot_"+parameter)
+		.attr("class", "dot_"+dom_param)
 
 		.attr("r", 3.5)
 
@@ -1751,12 +1762,15 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
         });
 };
 
-scatterPlot.prototype.updatedots = function updatedots(parameter){
+scatterPlot.prototype.updatedots = function updatedots(){
 	var self = this;
 	// Force D3 to recalculate and update the dots 
 	for (var i = self.sel_y.length - 1; i >= 0; i--) {
-		self.scatter_svg.selectAll(".dot_"+self.sel_y[i])
-			.attr("cx", function(d) {return self.xScale(d[self.sel_x]);})
+		var parameter = self.sel_y[i].replace(/[^a-zA-Z ]/g, "");
+		self.scatter_svg.selectAll(".dot_"+parameter)
+			.attr("cx", function(d) {
+				return self.xScale(d[self.sel_x]);
+			})
 			.attr("cy", function(d) {
 				if(self.right_scale.length > 0 && _.indexOf(self.right_scale, self.sel_y[i]) > -1 ){
 					return self.yScale_right(d[self.sel_y[i]]);
@@ -2446,7 +2460,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		d3.select("#toggle_filters").on("click", function(){
 
 			$(self.histoEl).empty();
-			$(window).off("resize", resize_parallels);
+			//$(window).off("resize", resize_parallels);
+
 
 			if(self.filters_hidden){
 				self.filters_hidden = false;
@@ -2454,7 +2469,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 				$(self.scatterEl).animate({height: "60%"}, {
 					step: function( now, fx ) {
-						$(self.scatterEl).trigger('resize');
+						//$(self.scatterEl).trigger('resize');
 					},
 					complete: function() {
 						$(self.scatterEl).trigger('resize');
@@ -2466,7 +2481,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				self.filters_hidden = true;
 				$(self.scatterEl).animate({height: "95%"}, {
 					step: function( now, fx ) {
-						$(self.scatterEl).trigger('resize');
+						//$(self.scatterEl).trigger('resize');
 					},
 					complete: function() {
 						$(self.scatterEl).trigger('resize');
@@ -2478,7 +2493,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			
 		});
 
-		$(window).resize(resize_parallels);
+		var doit_p;
+
+		$(window).resize(function(){
+			clearTimeout(doit_p);
+			doit_p = setTimeout(resize_parallels, 100);
+		});
+
+		//$(window).resize(resize_parallels);
 	}
 }
 
