@@ -1064,8 +1064,8 @@ scatterPlot.prototype.render = function(){
 	var boxselections = $(".CaptionCont.SelectBox");
 	for (var i = boxselections.length - 1; i >= 0; i--) {
 		var title = $(boxselections[i]).attr("title");
-		title = title.replace("<sub> ", "_");
-		title = title.replace("</sub>", "");
+		title = title.replace(/\<sub\> /g, "_");
+		title = title.replace(/\<\/sub\>/g, "");
 		$(boxselections[i]).attr("title", title);
 	}
 
