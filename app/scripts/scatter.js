@@ -717,6 +717,10 @@ scatterPlot.prototype.render = function(){
 				return d[sel];
 			});
 
+			if(d[0] == d[1]){
+				d[1] = d[1] + 1;
+			}
+
 			domains.push({
 				parameter: sel,
 				domain: d,
