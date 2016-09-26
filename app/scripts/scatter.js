@@ -1055,6 +1055,16 @@ scatterPlot.prototype.render = function(){
 
 	self.updateTicks();
 
+	// Remove possible <sub> elements from title as they do not 
+	// render correctly as tooltip
+	var boxselections = $(".CaptionCont.SelectBox");
+	for (var i = boxselections.length - 1; i >= 0; i--) {
+		var title = $(boxselections[i]).attr("title");
+		title = title.replace("<sub> ", "_");
+		title = title.replace("</sub>", "");
+		$(boxselections[i]).attr("title", title);
+	}
+
 
     // Add rect to allow zoom and pan interaction over complete graph
 	self.scatter_svg.append("rect")
