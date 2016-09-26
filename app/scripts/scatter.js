@@ -697,6 +697,9 @@ scatterPlot.prototype.render = function(){
 			domain = d3.extent(this.data, function(d) { 
 			 	return d[par];
 			});
+			if(domain[0] == domain[1]){
+				domain[1] = domain[1] + 1;
+			}
 		}
 		var d_max1 = domain[1];
 		var d_min1 = domain[0];
@@ -1971,6 +1974,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				.attr("id", "filtermanager");
 
 			var that = self;
+
 			function handleClickedItem(evt){
 				if($(evt.originalEvent.srcElement).hasClass("erasorfunction") ||
 				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove") ||
@@ -2453,7 +2457,9 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 						html+= ': '+self.uom_set[item.id].name;
 					}
 					return html;
-				}
+				},
+				onClick: handleClickedItem.bind(self),
+				onRemove: handleRemovedItem.bind(self)
 			});
 		}
 
