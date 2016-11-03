@@ -1377,7 +1377,7 @@ scatterPlot.prototype.render = function(){
 			var legend = self.scatter_svg.selectAll(".legend_"+self.sel_y[i].replace(/[^a-zA-Z ]/g, ""))
 				.data(self.identifiers)
 				.enter().append("g")
-				.attr("class", "legend_"+self.sel_y[i])
+				.attr("class", "legend_"+self.sel_y[i].replace(/[^a-zA-Z ]/g, ""))
 				.attr("transform", function(d,n) { 
 					return "translate(0," + ((i*20) + (n*y_offset)) + ")";
 				});
