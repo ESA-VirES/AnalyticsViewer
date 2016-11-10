@@ -67,14 +67,15 @@ var args = {
 	scatterEl: "#scatter",
 	histoEl: "#histograms",
 	//data: plotdata,
-	url: "data/no_range.csv",
+	url: "data/swarmdata.csv",
 	selection_x: "availabilityTime",
 	selection_y: ["baselinePerpendicularOffset"],
 	selection_x: "Latitude",
 	selection_y: ["n", "F"],
 	toIgnoreHistogram: ["productURI", "thumbnailImageLocationList","footprint", "orbitDirection", "polarisationMode", "productId", "browseImageLocationList", "platformShortName","platformSerialIdentifier","instrumentShortName","sensorType","operationalMode","orbitNumber","wrsLongitudeGrid","wrsLatitudeGrid","startTimeFromAscendingNode","completionTimeFromAscendingNode","acquisitionType","polarisationChannels","dopplerFrequency"],
 	uom_set: uom_set,
-	single_color: true
+	single_color: true,
+	//filters_hidden: true
 	//,file_save_string: "otherfilename"
 
 };

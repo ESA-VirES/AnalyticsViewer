@@ -13,6 +13,8 @@
 
 function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
+var logger = function(param){console.log(param);}
+
 
 function scatterPlot(args, callback, openinfo, filterset) {
 
@@ -33,9 +35,10 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.file_save_string = defaultFor(args.file_save_string, "Analytics.png");
 	this.uom_set = defaultFor(args.uom_set, {});
-	this.filters_hidden = false;
+	this.filters_hidden = defaultFor(args.filters_hidden, false);
 	this.openinfo = openinfo;
 	this.filterset = filterset;
+	this.filterListChanged = defaultFor(args.filterListChanged, logger),
 	this.callback = callback;
 	this.headerNames = null;
 	this.colors = args.colors;
@@ -101,6 +104,11 @@ function scatterPlot(args, callback, openinfo, filterset) {
 
 	this.tooltip = d3.select("body").append("div")
         .attr("class", "AV-point-tooltip");
+
+    if(this.filters_hidden){
+    	$(this.scatterEl).css({height: "95%"});
+		$(this.histoEl).css("height", "40px");
+    }
 	
 
 }
@@ -1989,7 +1997,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 
 			var that = self;
 
-			function handleClickedItem(evt){
+			self.handleClickedItem = function(evt){
 				if($(evt.originalEvent.srcElement).hasClass("erasorfunction") ||
 				   $(evt.originalEvent.srcElement).hasClass("w2ui-list-remove") ||
 				   // to make sure this also works in firefox
@@ -2028,7 +2036,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 				}
 			}
 
-			function handleRemovedItem(evt){
+			self.handleRemovedItem = function(evt){
 				if($(evt.originalEvent.srcElement).hasClass("w2ui-list-remove") || 
 					// to make sure this also works in firefox
 					$(evt.originalEvent.originalTarget).hasClass("w2ui-list-remove")){
@@ -2040,6 +2048,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					}
 
 					that.active_brushes = that.active_filters.filter(function(p) { return !that.y[p].brush.empty(); });
+					self.filterListChanged(self.active_filters);
 					that.brush_extents = {};
 					that.active_brushes.map(function(p) { that.brush_extents[p] = that.y[p].brush.extent(); });
 					var filter = {};
@@ -2112,8 +2121,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					}
 					return html;
 				},
-				onClick: handleClickedItem.bind(self),
-				onRemove: handleRemovedItem.bind(self)
+				onClick: self.handleClickedItem.bind(self),
+				onRemove: self.handleRemovedItem.bind(self)
 			});
 
 			$( "#addfilteropen" ).click(function(){
@@ -2123,6 +2132,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			$('#filtermanager').change(function(event){
 				var parameters = $('#filtermanager').data('selected');
 				self.active_filters = parameters.map(function(item) {return item.id;});
+				self.filterListChanged(self.active_filters);
 				self.parallelsPlot();
 			});
 
@@ -2423,6 +2433,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			    	d3.select(this).call(self.axis.scale(yobj[d]));
 			    })
 
+
 			$("#filterinputgroup .w2ui-field").width( $(self.histoEl).width()-self.shorten_width );
 			$('#filtermanager').w2field('enum', { 
 				items: self.parameters, 
@@ -2472,8 +2483,8 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					}
 					return html;
 				},
-				onClick: handleClickedItem.bind(self),
-				onRemove: handleRemovedItem.bind(self)
+				onClick: self.handleClickedItem.bind(self),
+				onRemove: self.handleRemovedItem.bind(self)
 			});
 		}
 
@@ -2493,6 +2504,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					},
 					complete: function() {
 						$(self.scatterEl).trigger('resize');
+
 						self.parallelsPlot();
 					}
 				});
@@ -2507,6 +2519,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 						$(self.scatterEl).trigger('resize');
 						$(self.histoEl).css("height", "40px");
 						self.parallelsPlot();
+						//resize_parallels();
 					}
 				});
 			}
@@ -2514,11 +2527,12 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 		});
 
 		var doit_p;
-
-		$(window).resize(function(){
+		var debounceResize = function(){
 			clearTimeout(doit_p);
 			doit_p = setTimeout(resize_parallels, 100);
-		});
+		};
+		$(window).off('resize.debounce');
+		$(window).on('resize.debounce', debounceResize);
 
 		//$(window).resize(resize_parallels);
 	}
