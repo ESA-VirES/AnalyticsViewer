@@ -39,6 +39,10 @@ function scatterPlot(args, callback, openinfo, filterset) {
 	this.openinfo = openinfo;
 	this.filterset = filterset;
 	this.filterListChanged = defaultFor(args.filterListChanged, logger),
+	this.gridSettingChanged = defaultFor(args.gridSettingChanged, logger),
+	this.xAxisSelectionChanged = defaultFor(args.xAxisSelectionChanged, logger),
+	this.yAxisSelectionChanged = defaultFor(args.yAxisSelectionChanged, logger),
+	this.filtersViewChanged = defaultFor(args.filtersViewChanged, logger),
 	this.callback = callback;
 	this.headerNames = null;
 	this.colors = args.colors;
@@ -520,6 +524,7 @@ scatterPlot.prototype.render = function(){
 			});
 
 			self.sel_y = objs;
+			self.yAxisSelectionChanged(self.sel_y);
 			self.render();
 			self.parallelsPlot();
 		
@@ -609,7 +614,7 @@ scatterPlot.prototype.render = function(){
 		$(".xselectdropdown").find(".SumoSelect").change(function(evt){
 
 			self.sel_x = $(this).find("option:selected").val();
-			
+			self.xAxisSelectionChanged(self.sel_x);
 			self.render();
 			self.parallelsPlot();
 		
@@ -926,6 +931,7 @@ scatterPlot.prototype.render = function(){
 
 	this.gridselector.on("click", function() {
 		self.grid_active = !self.grid_active;
+		self.gridSettingChanged(self.grid_active);
 		// If grid is selected we expand the tick size to cover the whole plot
 		if(self.grid_active){
 
@@ -2523,7 +2529,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 					}
 				});
 			}
-			
+			self.filtersViewChanged(self.filters_hidden);
 		});
 
 		var doit_p;
