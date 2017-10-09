@@ -32,9 +32,10 @@ var uom_set = {
         "uom":"nT",
         "name": "Magnetic field vector, NEC frame"
     },
-    "asd": {
+    "F": {
         "uom":"nT",
-        "name": "Magnetic field intensity"
+        "name": "Magnetic field intensity",
+        "format": ".3g"
     },
     "Ferrorlonglong": {
         "uom": "deg",

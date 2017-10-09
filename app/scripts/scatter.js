@@ -1962,9 +1962,6 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			var line = d3.svg.line(),
 			    foreground;
 
-			// User general formatting for ticks on Axis
-			this.axis.tickFormat(d3.format(".3g"));
-
 			var svg = d3.select(this.histoEl).append("svg")
 				.attr("class", "parallels")
 			    .attr("width", $(this.histoEl).width())
@@ -2332,7 +2329,14 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
 			// Add an axis and title.
 			g.append("svg:g")
 			    .attr("class", "axis")
-			    .each(function(d) { 
+			    .each(function(d) {
+                    if(self.uom_set.hasOwnProperty(d) && 
+                        self.uom_set[d].hasOwnProperty('format')){
+                        self.axis.tickFormat(d3.format(self.uom_set[d].format));
+                    }else{
+                        // User general formatting for ticks on Axis
+                        self.axis.tickFormat(d3.format(",g"));
+                    }
 			    	d3.select(this).call(self.axis.scale(self.y[d]));
 			    });
 			    /*.append("svg:text")
