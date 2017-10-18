@@ -2335,7 +2335,7 @@ scatterPlot.prototype.parallelsPlot = function parallelsPlot(){
                         self.axis.tickFormat(d3.format(self.uom_set[d].format));
                     }else{
                         // User general formatting for ticks on Axis
-                        self.axis.tickFormat(d3.format(",4s"));
+                        self.axis.tickFormat(d3.format(",.4r"));
                     }
 			    	d3.select(this).call(self.axis.scale(self.y[d]));
 			    });
