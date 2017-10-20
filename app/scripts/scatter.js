@@ -1744,12 +1744,23 @@ scatterPlot.prototype.renderdots = function renderdots(parameter){
 			}
 			values = '<br>'+values;
 
+            var topPos = d3.event.pageY + 3;
+            var clientHeight = d3.select('body').node().getBoundingClientRect().height;
+            if (topPos+300 > clientHeight){
+                topPos = topPos - 300;
+            }
+            var leftPos = (d3.event.pageX + 10);
+            var clientWidth = d3.select('body').node().getBoundingClientRect().width;
+            if(leftPos+240 > clientWidth ){
+                leftPos = leftPos - 265;
+            }
+
             self.tooltip.transition()
                 .duration(100)
                 .style("display", "block");
             self.tooltip.html(values)
-                .style("left", (d3.event.pageX + 10) + "px")
-                .style("top", (d3.event.pageY + 3) + "px");
+                .style("left", leftPos + "px")
+                .style("top", topPos + "px");
 
             // Add close button
             var closeArea = self.tooltip.append('text')
